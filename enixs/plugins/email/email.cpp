@@ -2,15 +2,14 @@
 //#  email.cpp
 //#  =========
 //#
-//#  Creation:       Sun Apr  7 16:25:16 CEST 2002
-//#  Author:         Ralf Schneider  (ralf.schneider@b-connected.de)
-//#  Copyright:      (C) 2002 by B-connected Linux Solutions GmbH
+//#  Creation:       Thu Jun 27 11:35:16 CEST 2002
+//#  Author:         Sven Alisch  (svenali@t-online.de)
+//#  Copyright:      (C) 2002 by Sven Alisch
 //#
 //#  ------------------------------------------------------------------------
 //#
 //#  This file contains the implemenatition of the class CEmail.
-//#  This is the main class of the Email application of EniXs, which
-//#  demonstrates howto implement your own EniXs plugins.
+//#  This is the main class of the calendar application of eniXs.
 //#
 //#  ------------------------------------------------------------------------
 //#
@@ -24,212 +23,217 @@
 //=============================================================================
 // Include files for QT.
 //=============================================================================
-#include <qaccel.h>
-#include <qwhatsthis.h>
-#include <qmessagebox.h>
+#include <qlabel.h>
 
 //=============================================================================
 // Application specific includes.
 //=============================================================================
 #include "email.h"
+#include "util.h"
+#include "email.xpm"
 
 //=============================================================================
-// Bitmaps.
-//=============================================================================
-#include "bitmaps/emailnew.xpm"
-#include "bitmaps/emaildelete.xpm"
-#include "bitmaps/emailsave.xpm"
-#include "bitmaps/emailclose.xpm"
-#include "bitmaps/emailprint.xpm"
-
-#include "bitmaps/editundo.xpm"
-#include "bitmaps/editcut.xpm"
-#include "bitmaps/editcopy.xpm"
-#include "bitmaps/editpaste.xpm"
-#include "bitmaps/editfind.xpm"
-
-#include "bitmaps/helpcontents.xpm"
-#include "bitmaps/helpcontext.xpm"
-
-#include "bitmaps/email.xpm"
-
-
-//=============================================================================
-// Constructor of the Email application class.
+// Constructor of the calendar application class.
 //=============================================================================
 CEmail::CEmail (QWidget *parent, const char *name, int wflags)
-    : QVBox (parent, name)
+  : QWidget (parent, name, wflags)
 {
-  setGeometry (0, 0, 400, 300);
-
   //----------------------------------------------------------------------------
   //  Store the database connection.
   //----------------------------------------------------------------------------
   mDB          = QSqlDatabase::database();
   mCurrentUser = new CUserData();
-  mCurrentUser->getUserData (mDB->userName());
-  
-  //---------------------------------------------------------------------------
-  // Create the menubar and the toolbar.
-  //---------------------------------------------------------------------------
-  initActions();
+  mCurrentUser->getUserData (mDB->userName());  
+  mLabel = new QLabel (tr ("Email application"), this);
+
+  //this->resize(780,550);
+  setGeometry (0, 0, 780, 550);
+
+  initAction();
   initMenubar();
   initToolbar();
+
+  //----------------------------------------------------------------------------
+  //  Init Email ListView
+  //----------------------------------------------------------------------------
+
+  mVertSplitter = new QSplitter(QSplitter::Vertical, this, "Vertical Splitter");
+  mVertSplitter->setGeometry(0,65,776,450);
+  mHoriSplitter = new QSplitter(QSplitter::Horizontal, mVertSplitter, "Horizontal Splitter");
+  //mHoriSplitter->setGeometry(0,65,780,580);  
+
+  mEmailTree = new QListView(mHoriSplitter,"EMailTree",0);
+  mEmailTree->addColumn("Folder",250);
+  mEmailTree->setMinimumSize(250,200);
+
+  mEmails = new QListView(mHoriSplitter,"EMailTree",0);
+  mEmails->setMinimumSize(526,200);
+  mEmails->addColumn("Subject",250);
+  mEmails->addColumn("From",150);
+  mEmails->addColumn("Date",250);
   
-  //---------------------------------------------------------------------------
-  // Create the label.
-  //---------------------------------------------------------------------------
-  mInfo = new QLabel ("This is the Email plugin"
-                      "\nthat demonstrates howto implement an EniXs plugin",
-                      this, "info");
-  
-  initStatusbar();
+  mEmailText = new QTextEdit(mVertSplitter,"Email Text");
+  mEmailText->setMinimumSize(776,280);
+  //mVertSplitter->setOpaqueResize(true);
+  //mHoriSplitter->setOpaqueResize(true);
+
+  updateTree();
 }
 
 //=============================================================================
 // Initialize the menu actions.
 //=============================================================================
-void CEmail::initActions()
-{
-  QPixmap deleteIcon, saveIcon, newIcon, printIcon, closeIcon;
+void CEmail::initAction() {
+  QPixmap deleteIcon, saveIcon, newIcon, printIcon, closeIcon, mailgetIcon;
   QPixmap undoIcon, cutIcon, copyIcon, pasteIcon, findIcon;
-  QPixmap contentsIcon, contextIcon, aboutIcon;
+  QPixmap contentsIcon, contextIcon;
+  QPixmap folderNew,newMessageIcon;
+  
+  newIcon     = QPixmap (contactnew);
+  deleteIcon  = QPixmap (contactdelete);
+  saveIcon    = QPixmap (contactsave);
+  closeIcon   = QPixmap (contactclose);
+  printIcon   = QPixmap (contactprint);
+  mailgetIcon = QPixmap (mail_getIcon);
 
-  //---------------------------------------------------------------------------
-  // Create the icons for the actions.
-  //---------------------------------------------------------------------------
-  newIcon  	   = QPixmap (emailnew);
-  deleteIcon   = QPixmap (emaildelete);
-  saveIcon 	   = QPixmap (emailsave);
-  closeIcon    = QPixmap (emailclose);
-  printIcon    = QPixmap (emailprint);
-
-  undoIcon     = QPixmap (editundo);
-  cutIcon 	   = QPixmap (editcut);
-  copyIcon 	   = QPixmap (editcopy);
-  pasteIcon    = QPixmap (editpaste);
-  findIcon 	   = QPixmap (editfind);
+  undoIcon    = QPixmap (editundo);
+  cutIcon     = QPixmap (editcut);
+  copyIcon    = QPixmap (editcopy);
+  pasteIcon   = QPixmap (editpaste);
+  findIcon    = QPixmap (editfind);
 
   contentsIcon = QPixmap (helpcontents);
   contextIcon  = QPixmap (helpcontext);
-  aboutIcon    = QPixmap (email_icon);
+
+  folderNew   = QPixmap (folder_newIcon);
+  newMessageIcon = QPixmap (filenew_Icon);
 
   //---------------------------------------------------------------------------
   // Create the actions for the Email menu.
   //---------------------------------------------------------------------------
-  mEmailNew = new QAction (tr("New Email"), newIcon, tr("&New"), 
-                             QAccel::stringToKey (tr("Ctrl+N")), this);
-  mEmailNew->setStatusTip (tr("Creates a new email"));
-  mEmailNew->setWhatsThis (tr("New Email\n\nCreates a new email"));
-  connect (mEmailNew, SIGNAL(activated()), this, SLOT(slotEmailNew()));
 
-  mEmailDelete = new QAction (tr("Delete Email"), deleteIcon, tr("&Delete"), 
-                                QAccel::stringToKey (tr("Ctrl+D")), this);
-  mEmailDelete->setStatusTip (tr("Deletes the current email"));
-  mEmailDelete->setWhatsThis (tr("Delete Email.\n\nDeletes the current email"));
-  mEmailDelete->setEnabled   (false);
-  connect (mEmailDelete, SIGNAL(activated()), this, SLOT(slotEmailDelete()));
+  mEmailNew = new QAction (tr("New Email Window"), newIcon, tr("&New Window"), QAccel::stringToKey (tr("Ctrl+N")), this);
+  mEmailNew->setStatusTip (tr("Creates a new email window"));
+  mEmailNew->setWhatsThis (tr("New Email Window\n\nCreates a new email window"));
 
-  mEmailSave = new QAction (tr("Save Email"), saveIcon, tr("&Save"), 
-                              QAccel::stringToKey (tr("Ctrl+S")), this);
-  mEmailSave->setStatusTip (tr("Saves the current email"));
-  mEmailSave->setWhatsThis (tr("Save Email.\n\nSaves the current email"));
-  mEmailSave->setEnabled   (false);
-  connect (mEmailSave, SIGNAL(activated()), this, SLOT(slotEmailSave()));
+  mSaveUnder = new QAction (tr("Save Email"), saveIcon, tr("&Save Email"), QAccel::stringToKey (tr("Ctrl+S")), this);
+  mSaveUnder->setStatusTip (tr("Save email sepraratly"));
+  mSaveUnder->setWhatsThis (tr("Save Email\n\nThe user can save his email separatly in a file."));
 
-  mEmailPrint = new QAction (tr("Print Email"), printIcon, tr("&Print"), 
-                               QAccel::stringToKey (tr("Ctrl+P")), this);
-  mEmailPrint->setStatusTip (tr("Prints out the current email"));
-  mEmailPrint->setWhatsThis (tr("Print Email\n\nPrints out the current email"));
-  mEmailPrint->setEnabled   (false);
-  connect (mEmailPrint, SIGNAL(activated()), this, SLOT(slotEmailPrint()));
+  mPrintMail = new QAction (tr("Print Email"), printIcon, tr("&Print Email"), QAccel::stringToKey (tr("Ctrl+P")), this);
+  mPrintMail->setStatusTip (tr("Print the Email"));
+  mPrintMail->setWhatsThis (tr("Print Email\n\nThe user can print his email."));
+  
+  mDownloadEmail=new QAction(tr("Download Emails"),mailgetIcon,tr("&Download Email"),QAccel::stringToKey(tr("Ctrl+D")),this);
+  connect(mDownloadEmail,SIGNAL(activated()),this,SLOT(downloadEmails()));
+  mDownloadEmail->setStatusTip (tr("Download Emails"));
+  mDownloadEmail->setWhatsThis (tr("Download Email\n\nThe user can download his emails."));
 
-  mEmailClose = new QAction (tr("Close Email"), closeIcon, tr("&Close"), 
-                               QAccel::stringToKey (tr("Ctrl+W")), this);
-  mEmailClose->setStatusTip (tr("Closes the email application"));
-  mEmailClose->setWhatsThis (tr("Close Email\n\nCloses the email application"));
-  connect (mEmailClose, SIGNAL(activated()), this, SLOT(slotEmailClose()));
+  mDownloadEmailin=new QAction(tr("Download Emails in"),mailgetIcon,tr("&Download Email in"),QAccel::stringToKey(tr("Ctrl+I")),this);
+  mDownloadEmailin->setStatusTip (tr("Download Emails in"));
+  mDownloadEmailin->setWhatsThis (tr("Download Email in\n\nThe user can download his emails from a special account."));
+
+  mUnSendMessages = new QAction(tr("Unsend Messeages send"), tr("&Unsend Messages send"),QAccel::stringToKey(tr("Ctrl+U")),this);
+  mUnSendMessages->setStatusTip (tr("Unsend Messages send"));
+  mUnSendMessages->setWhatsThis (tr("Unsend Messages send\n\nThe user can send all unsent messages."));
+
+  mClose = new QAction(tr("Exit"), closeIcon, tr("E&xit"),QAccel::stringToKey(tr("Ctrl+X")),this);
+  mClose->setStatusTip (tr("Exit the Application"));
+  mClose->setWhatsThis (tr("Exit\n\nExits the Application"));
 
   //---------------------------------------------------------------------------
   // Create the actions for the Edit menu.
   //---------------------------------------------------------------------------
-  mEditCut = new QAction (tr("Cut"), cutIcon, tr("Cu&t"), 
-                          QAccel::stringToKey (tr("Ctrl+X")), this);
+  mEditCut = new QAction (tr("Cut"), cutIcon, tr("Cu&t"), QAccel::stringToKey (tr("Ctrl+X")), this);
   mEditCut->setStatusTip (tr("Cuts the selected text and puts it to the clipboard"));
   mEditCut->setWhatsThis (tr("Cut\n\nCuts the selected text and puts it to the clipboard"));
   mEditCut->setEnabled   (false);
-  connect (mEditCut, SIGNAL(activated()), this, SLOT(slotEditCut()));
+  //connect (mEditCut, SIGNAL(activated()), this, SLOT(slotEditCut()));
 
-  mEditCopy = new QAction (tr("Copy"), copyIcon, tr("&Copy"), 
-                           QAccel::stringToKey (tr("Ctrl+C")), this);
+  mEditCopy = new QAction (tr("Copy"), copyIcon, tr("&Copy"), QAccel::stringToKey (tr("Ctrl+C")), this);
   mEditCopy->setStatusTip (tr("Copies the selected text to the clipboard"));
   mEditCopy->setWhatsThis (tr("Copy\n\nCopies the selected text to the clipboard"));
   mEditCopy->setEnabled   (false);
-  connect (mEditCopy, SIGNAL(activated()), this, SLOT(slotEditCopy()));
+  //connect (mEditCopy, SIGNAL(activated()), this, SLOT(slotEditCopy()));
 
-  mEditUndo = new QAction (tr("Undo"), undoIcon, tr("&Undo"), 
-                           QAccel::stringToKey (tr("Ctrl+Z")), this);
+  mEditUndo = new QAction (tr("Undo"), undoIcon, tr("&Undo"), QAccel::stringToKey (tr("Ctrl+Z")), this);
   mEditUndo->setStatusTip (tr("Reverts the last editing action"));
   mEditUndo->setWhatsThis (tr("Undo\n\nReverts the last editing action"));
   mEditUndo->setEnabled   (false);
-  connect (mEditUndo, SIGNAL(activated()), this, SLOT(slotEditUndo()));
+  //connect (mEditUndo, SIGNAL(activated()), this, SLOT(slotEditUndo()));
 
-  mEditPaste = new QAction (tr("Paste"), pasteIcon, tr("&Paste"), 
-                            QAccel::stringToKey (tr("Ctrl+V")), this);
+  mEditPaste = new QAction (tr("Paste"), pasteIcon, tr("&Paste"), QAccel::stringToKey (tr("Ctrl+V")), this);
   mEditPaste->setStatusTip (tr("Pastes the clipboard contents to actual position"));
   mEditPaste->setWhatsThis (tr("Paste\n\nPastes the clipboard contents to actual position"));
-  connect (mEditPaste, SIGNAL(activated()), this, SLOT(slotEditPaste()));
+  //connect (mEditPaste, SIGNAL(activated()), this, SLOT(slotEditPaste()));
+
+  mEditSearchin = new QAction (tr("Search ..."), findIcon, tr("&Search ..."), QAccel::stringToKey (tr("Ctrl+E")), this);
+  mEditSearchin->setStatusTip (tr("Searches text in this Email"));
+  mEditSearchin->setWhatsThis (tr("Search\n\nSearches text in this Email"));
+  
+  mEditSearchall = new QAction (tr("Search in all Emails ..."), findIcon, tr("S&earch in all Emails ..."), QAccel::stringToKey (tr("Ctrl+A")), this);
+  mEditSearchall->setStatusTip (tr("Searches in all Email"));
+  mEditSearchall->setWhatsThis (tr("Search in all Emails\n\nSearches in all Emails"));
 
   //---------------------------------------------------------------------------
-  // Create the actions for the View menu.
+  // Create the actions for the Folder menu.
   //---------------------------------------------------------------------------
-  mViewToolBar = new QAction (tr("Toolbar"), tr("Tool&bar"), 0, this, 0, true);
-  mViewToolBar->setStatusTip (tr("Enables/disables the toolbar"));
-  mViewToolBar->setWhatsThis (tr("Toolbar\n\nEnables/disables the toolbar"));
-  connect (mViewToolBar, SIGNAL(toggled(bool)), this, SLOT(slotViewToolBar(bool)));
+  
+  mDirectoryNew = new QAction (tr("New Folder"), folderNew, tr("Ne&w folder"), QAccel::stringToKey (tr("Ctrl+F")), this);
+  mDirectoryNew->setStatusTip (tr("New Folder for  Emails"));
+  mDirectoryNew->setWhatsThis (tr("New Folder for  Emails\n\nCreates a new Folder for Emails"));
 
-  mViewStatusBar = new QAction (tr("Statusbar"), tr("&Statusbar"), 0, this, 0,true);
-  mViewStatusBar->setStatusTip (tr("Enables/disables the statusbar"));
-  mViewStatusBar->setWhatsThis (tr("Statusbar\n\nEnables/disables the statusbar"));
-  connect (mViewStatusBar,SIGNAL(toggled(bool)),this,SLOT(slotViewStatusBar(bool)));
+  mProperty = new QAction (tr("Properties"), tr("&Properties"), QAccel::stringToKey (tr("P")), this);
+  mProperty->setStatusTip (tr("Properties for Folder"));
+  mProperty->setWhatsThis (tr("Properties for Folder\n\nChange Properties for folder"));
+
+  mCompress = new QAction (tr("Compress"), tr("&Compress"), QAccel::stringToKey (tr("C")), this);
+  mCompress->setStatusTip (tr("Compress Folder"));
+  mCompress->setWhatsThis (tr("Compress Folder\n\nCompresses big Email folders"));
+
+  mMakeEmpty = new QAction (tr("Empty"), tr("&Empty"), QAccel::stringToKey (tr("E")), this); 
+  mMakeEmpty->setStatusTip (tr("Delete Folder Content"));
+  mMakeEmpty->setWhatsThis (tr("Delete Folder Contents\n\nDelete the folder content"));
+
+  mDeleteFolder = new QAction (tr("Delete"), tr("&Delete"), QAccel::stringToKey (tr("D")), this);
+  mDeleteFolder->setStatusTip (tr("Delete Folder"));
+  mDeleteFolder->setWhatsThis (tr("Delete Folder\n\nDelete the whole folder"));
+
+  mHTMLView = new QAction (tr("HTML Viewing EMails"), tr("&HTML Viewing EMails"), QAccel::stringToKey (tr("CTRL+C")), this);
+  mHTMLView->setStatusTip (tr("HTML Viewing EMails"));
+  mHTMLView->setWhatsThis (tr("HTML Viewing EMails\n\nViews Emails as HTML Pages"));
+
+  mGroupMail = new QAction (tr("Show Messages in a group"), tr("&Show Messages in a group"), QAccel::stringToKey (tr("CTRL+G")), this);
+  mGroupMail->setStatusTip (tr("Show Messages in a group"));
+  mGroupMail->setWhatsThis (tr("Show Messages in a group\n\nShow Messages sorted in a group"));
 
   //---------------------------------------------------------------------------
-  // Create the actions for the Help menu.
+  // Create the actions for the Messages menu.
   //---------------------------------------------------------------------------
-  mHelpContents = new QAction (tr("Contents"), contentsIcon, tr("&Contents..."), 
-                               QAccel::stringToKey (tr("F1")), this);
-  mHelpContents->setStatusTip (tr("Contents of the user manual"));
-  mHelpContents->setWhatsThis (tr("Contents\n\nContents of the user manual"));
-  connect (mHelpContents, SIGNAL(activated()), this, SLOT(slotHelpContents()));
 
-  mHelpWhatsThis = new QAction (tr("What's This"), contextIcon, tr("What's &This"),
-                                QAccel::stringToKey (tr("Shift+F1")), this);
-  mHelpWhatsThis->setStatusTip (tr("Context sensitive help"));
-  mHelpWhatsThis->setWhatsThis (tr("What's This\n\nContext sensitive help"));
-  connect (mHelpWhatsThis, SIGNAL(activated()), this, SLOT(slotHelpWhatsThis()));
-
-  mHelpAboutApp = new QAction (tr("About"), aboutIcon, tr("&About..."), 0, this);
-  mHelpAboutApp->setStatusTip (tr("About the application"));
-  mHelpAboutApp->setWhatsThis (tr("About\n\nAbout the application"));
-  connect (mHelpAboutApp, SIGNAL(activated()), this, SLOT(slotHelpAbout()));
+  mNewMessages = new QAction (tr("New Message"), newMessageIcon, tr("&New Message ..."), QAccel::stringToKey (tr("CTRL+N")), this);
+  
 }
 
 //=============================================================================
 // Create the menubar.
 //=============================================================================
-void CEmail::initMenubar()
-{
+void CEmail::initMenubar() {
+  
   //---------------------------------------------------------------------------
-  // Entries for the email menu.
+  // Entries for the Email menu.
   //---------------------------------------------------------------------------
   mEmailMenu = new QPopupMenu();
-
-  mEmailNew->addTo	(mEmailMenu);
-  mEmailDelete->addTo(mEmailMenu);
-  mEmailSave->addTo	(mEmailMenu);
-  mEmailPrint->addTo	(mEmailMenu);
+  mEmailNew->addTo(mEmailMenu);
   mEmailMenu->insertSeparator();
-  mEmailClose->addTo	(mEmailMenu);
+  mSaveUnder->addTo(mEmailMenu);
+  mPrintMail->addTo(mEmailMenu);
+  mEmailMenu->insertSeparator();
+  mDownloadEmail->addTo(mEmailMenu);
+  mDownloadEmailin->addTo(mEmailMenu);
+  mUnSendMessages->addTo(mEmailMenu);
+  mEmailMenu->insertSeparator();
+  mClose->addTo(mEmailMenu);
 
   //---------------------------------------------------------------------------
   // Entries for the Edit menu.
@@ -241,294 +245,101 @@ void CEmail::initMenubar()
   mEditCut->addTo	(mEditMenu);
   mEditCopy->addTo	(mEditMenu);
   mEditPaste->addTo	(mEditMenu);
-
+  mEditMenu->insertSeparator();
+  mEditSearchin->addTo(mEditMenu);
+  mEditSearchall->addTo(mEditMenu);
+  
   //---------------------------------------------------------------------------
-  // Entries for the View menu.
+  // Entries for the Directory menu.
   //---------------------------------------------------------------------------
-  mViewMenu = new QPopupMenu();
-  mViewMenu->setCheckable (true);
 
-  mViewToolBar->addTo	(mViewMenu);
-  mViewStatusBar->addTo	(mViewMenu);
-
+  mEmailDirectory = new QPopupMenu();
+  mDirectoryNew->addTo(mEmailDirectory);
+  mCompress->addTo(mEmailDirectory);
+  mEmailDirectory->insertSeparator();
+  mMakeEmpty->addTo(mEmailDirectory);
+  mDeleteFolder->addTo(mEmailDirectory);
+  mEmailDirectory->insertSeparator();
+  mHTMLView->addTo(mEmailDirectory);
+  mGroupMail->addTo(mEmailDirectory);;
+ 
   //---------------------------------------------------------------------------
-  // Entries for the Help menu.
+  // Entries for the Messages menu.
   //---------------------------------------------------------------------------
-  mHelpMenu=new QPopupMenu();
 
-  mHelpContents->addTo	(mHelpMenu);
-  mHelpWhatsThis->addTo	(mHelpMenu);
-  mHelpMenu->insertSeparator();
-  mHelpAboutApp->addTo	(mHelpMenu);
+  mMessages = new QPopupMenu();
+  mNewMessages->addTo(mMessages);
+  
 
   //---------------------------------------------------------------------------
   // Insert the menus into the menubar.
   //---------------------------------------------------------------------------
   mMenubar = new QMenuBar (this);
-  
-  mMenubar->insertItem (tr("&File"), mEmailMenu);
-  mMenubar->insertItem (tr("&Edit"), mEditMenu);
-  mMenubar->insertItem (tr("&View"), mViewMenu);
-  mMenubar->insertItem (tr("&Help"), mHelpMenu);
+
+  mMenubar->insertItem( tr("&File"), mEmailMenu );
+  mMenubar->insertItem( tr("&Edit"), mEditMenu );
+  mMenubar->insertItem( tr("&Directory"), mEmailDirectory);
+  mMenubar->insertItem( tr("&Messages"), mMessages);
 }
 
 //=============================================================================
 // Create the toolbar.
 //=============================================================================
-void CEmail::initToolbar()
-{
-  mEmailToolbar = new QToolBar ("Email Operations", 0, this);
-  mEmailToolbar->setFixedSize  (250, 25);
+void CEmail::initToolbar() {
+  mEmailToolbar = new QToolBar ("Email Operations",0,this);
+  mEmailToolbar->setGeometry(0,25,200,30);
   
-  mEmailNew->addTo	(mEmailToolbar);
-  mEmailDelete->addTo(mEmailToolbar);
-  mEmailSave->addTo	(mEmailToolbar);
-  mEmailPrint->addTo	(mEmailToolbar);
+  mEmailNew->addTo(mEmailToolbar);
   mEmailToolbar->addSeparator();
-  mEditUndo->addTo	    (mEmailToolbar);
-  mEditCut->addTo	    (mEmailToolbar);
-  mEditCopy->addTo	    (mEmailToolbar);
-  mEditPaste->addTo	    (mEmailToolbar);
+  mSaveUnder->addTo(mEmailToolbar);
+  mPrintMail->addTo(mEmailToolbar);
   mEmailToolbar->addSeparator();
-  QWhatsThis::whatsThisButton (mEmailToolbar);
+  mDownloadEmail->addTo(mEmailToolbar);
+  //mDownloadEmailin->addTo(mEmailToolbar);
+  //mUnSendMessages->addTo(mEmailToolbar);
+  mEmailToolbar->addSeparator();
+  mClose->addTo(mEmailToolbar);
 }
 
 //=============================================================================
-// Initialize the statusbar.
+// Downloads emails
 //=============================================================================
-void CEmail::initStatusbar()
-{
-  mStatusbar = new QStatusBar    (this, "status bar");
-  mStatusbar->setFixedHeight     (20);
-  mStatusbar->message            (tr("Ready"));
+void CEmail::downloadEmails() {
+  QString popacc = "pop.t-online.de";
+  myPOPConnection = new CPOP(this, popacc);
+  std::cout << "Jetzt müsste was kommen !!!" << endl;
+  std::cout << "Die E-Mail:" << myPOPConnection->get_email() << endl;;
+  mEmailText->setText(myPOPConnection->get_email());
 }
 
 //=============================================================================
-// Check if the content of one of the tab pages has changed.
+// Update all Views
 //=============================================================================
-bool CEmail::hasContentChanged ()
-{
-  // Add your own checks here.
-  return false;
+void CEmail::updateAllViews() {
+  mEmailText->setText(myPOPConnection->get_email());
 }
 
 //=============================================================================
-// Set the Changed flag of all pages.
+// Update the Tree
 //=============================================================================
-void CEmail::setContentChanged (bool flag)
-{
-  // Add your own code here.
-}
+bool CEmail::updateTree() {
+  QString sql;QStringList record;
+  QSqlQuery query ("SELECT boxnames FROM mailfolder");
+        
+  //std::cout << sql << endl;
 
-//=============================================================================
-// SLOT:  Create a new email.
-//=============================================================================
-void CEmail::slotEmailNew()
-{
-  mStatusbar->message (tr("Creating new email..."));
+  if (!query.isActive())
+  {
+    SHOW_DB_ERROR(tr ("Error during database query"), query.lastQuery())
+    return false;
+  }
 
-  // Add your own code here.
-  
-  mStatusbar->message (tr("Ready."));
-}
-
-//=============================================================================
-// SLOT:  Delete the current email.
-//=============================================================================
-void CEmail::slotEmailDelete()
-{
-  mStatusbar->message (tr("Deleting email..."));
-  
-  // Add your own code here.
-  
-  mStatusbar->message (tr("Ready."));
-}
-
-//=============================================================================
-// SLOT:  Save the current email.
-//=============================================================================
-void CEmail::slotEmailSave()
-{
-  mStatusbar->message (tr("Saving email..."));
-  
-  // Add your own code here.
-  
-  mStatusbar->message (tr("Ready."));
-}
-
-//=============================================================================
-// SLOT:  Close the email application.
-//=============================================================================
-void CEmail::slotEmailClose()
-{
-  mStatusbar->message (tr("Closing email..."));
-
-  // Add your own code here.
-  
-  mStatusbar->message (tr("Ready."));
-}
-
-//=============================================================================
-// SLOT:  Print the current email.
-//=============================================================================
-void CEmail::slotEmailPrint()
-{
-  mStatusbar->message (tr("Printing..."));
-	
-  // Add your own code here.
-
-  mStatusbar->message (tr("Ready."));
-}
-
-//=============================================================================
-// SLOT:  Undo the last action.
-//=============================================================================
-void CEmail::slotEditUndo()
-{
-  mStatusbar->message (tr("Reverting last action..."));
-	
-  // Add your own code here.
-
-  mStatusbar->message (tr("Ready."));
-}
-
-//=============================================================================
-// SLOT:  Cut the selection and insert it into the clipboard.
-//=============================================================================
-void CEmail::slotEditCut()
-{
-  mStatusbar->message (tr("Cutting selection..."));
-	
-  // Add your own code here.
-
-  mStatusbar->message (tr("Ready."));
-}
-
-//=============================================================================
-// SLOT:  Copy the selection into the clipboard.
-//=============================================================================
-void CEmail::slotEditCopy()
-{
-  mStatusbar->message (tr("Copying selection to clipboard..."));
-
-  // Add your own code here.
-
-  mStatusbar->message (tr("Ready."));
-}
-
-//=============================================================================
-// SLOT:  Insert the content of the clipboard at the current position.
-//=============================================================================
-void CEmail::slotEditPaste()
-{
-  mStatusbar->message (tr("Inserting clipboard contents..."));
-
-  // Add your own code here.
-
-  mStatusbar->message (tr("Ready."));
-}
-
-//=============================================================================
-// SLOT:  Toggle the toolbar on/off.
-//=============================================================================
-void CEmail::slotViewToolBar (bool toggle)
-{
-  mStatusbar->message (tr("Toggle toolbar..."));
-
-  if (toggle)
-    mEmailToolbar->show();
-  else
-    mEmailToolbar->hide();
-
- mStatusbar->message (tr("Ready."));
-}
-
-//=============================================================================
-// SLOT:  Toggle the statusbar on/off.
-//=============================================================================
-void CEmail::slotViewStatusBar (bool toggle)
-{
-  mStatusbar->message(tr("Toggle statusbar..."));
-
-  if (toggle)
-    mStatusbar->show();
-  else
-    mStatusbar->hide();
-
-  mStatusbar->message (tr("Ready."));
-}
-
-//=============================================================================
-// SLOT:  Show the contents of the user manual.
-//=============================================================================
-void CEmail::slotHelpContents()
-{
-  mStatusbar->message (tr("Showing the user manual contents..."));
-
-  // Add your own code here.
-
-  mStatusbar->message (tr("Ready."));
-}
-
-//=============================================================================
-// SLOT:  Show the What's This cursor.
-//=============================================================================
-void CEmail::slotHelpWhatsThis()
-{
-  mStatusbar->message (tr("Showing information about widgets..."));
-
-  QWhatsThis::enterWhatsThisMode();
-  
-  mStatusbar->message (tr("Ready."));
-}
-
-//=============================================================================
-// SLOT:  Open the about dialog of the application.
-//=============================================================================
-void CEmail::slotHelpAbout()
-{
-  QMessageBox mb (tr("About Email"),
-                  tr("Email ") + VERSION + "\n\n" +
-                  tr("The Email Application\n\n") +
-                  tr("(c) 2002 by B-connected Linux Solutions GmbH"),
-                  QMessageBox::Information,
-                  QMessageBox::Ok | QMessageBox::Default,
-                  QMessageBox::NoButton, QMessageBox::NoButton, this);
-  mb.setIconPixmap (QPixmap (email_icon));
-
-  mb.exec();
-}
-
-//=============================================================================
-// SLOT:  Change the status message.
-//=============================================================================
-void CEmail::slotStatusHelpMsg (const QString &text)
-{
-  mStatusbar->message (text, 2000);
-}
-
-//=============================================================================
-// SLOT: Enable the Save action.
-//=============================================================================
-void CEmail::slotEnableSaving (bool changed)
-{
-  mEmailSave->setEnabled (changed);
-}
-
-//=============================================================================
-// SLOT: Enable the Print action.
-//=============================================================================
-void CEmail::slotEnablePrinting (bool changed)
-{
-  mEmailPrint->setEnabled (changed);
-}
-
-//=============================================================================
-// SLOT: Enable the Delete action.
-//=============================================================================
-void CEmail::slotEnableDeleting (bool changed)
-{
-  mEmailDelete->setEnabled (changed);
+  while (query.next())
+  {
+    //std::cout << record[0] << endl;
+    QListViewItem* item = new QListViewItem (mEmailTree, query.value(0).toString());
+  }
+  return true;
 }
 
 //=============================================================================
@@ -560,7 +371,7 @@ QPixmap CEmail::icon()
 //=============================================================================
 QString CEmail::toolTip()
 {
-  return tr("Email Application");
+  return tr("EMail Management");
 }
 
 //=============================================================================
@@ -568,7 +379,7 @@ QString CEmail::toolTip()
 //=============================================================================
 QString CEmail::whatsThis()
 {
-  return tr("Email Application for managing incoming and outgoing email");
+  return tr("Application for managing emails");
 }
 
 //=============================================================================
@@ -578,13 +389,4 @@ QString CEmail::summary()
 {
   return tr("Summary information");
 }
-
-//=============================================================================
-// Insert the offered objects of the plugin as children into the given
-// QListViewItem so that other plugins can use them for linking.
-//=============================================================================
-void CEmail::offeredObjects (QListViewItem *item)
-{
-}
-
 

@@ -2,15 +2,14 @@
 //#  email.h
 //#  =======
 //#
-//#  Creation:       Mon Apr 22 23:35:16 CEST 2002
-//#  Author:         Ralf Schneider  (ralf.schneider@b-connected.de)
-//#  Copyright:      (C) 2002 by B-connected Linux Solutions GmbH
+//#  Creation:       Thu Jun 27 11:35:16 CEST 2002
+//#  Author:         Sven Alisch  (svenali@t-online.de)
+//#  Copyright:      (C) 2002 by Sven Alisch
 //#
 //#  ------------------------------------------------------------------------
 //#
-//#  This file contains the definition of the class CEmail.
-//#  This is the main class of the Email application of EniXs, which
-//#  demonstrates howto implement your own EniXs plugins.
+//#  This file contains the implemenatition of the class CEmail.
+//#  This is the main class of the calendar application of eniXs.
 //#
 //#  ------------------------------------------------------------------------
 //#
@@ -28,105 +27,124 @@
 // Include files for QT.
 //=============================================================================
 #include <qwidget.h>
-#include <qvbox.h>
-#include <qaction.h>
 #include <qmenubar.h>
+#include <qaction.h>
+#include <qpopupmenu.h>
+#include <qaccel.h>
 #include <qtoolbar.h>
-#include <qstatusbar.h>
 #include <qlistview.h>
-#include <qlabel.h>
+#include <qsplitter.h>
+#include <qtextedit.h>
+#include <qvaluelist.h>
 #include <qsqldatabase.h>
+#include <qvbox.h>
 
 //=============================================================================
 // Application specific includes.
 //=============================================================================
 #include "userdata.h"
+//#include <dbconnection.h>
+
+//=============================================================================
+// Application specific includes.
+//=============================================================================
+#include "userdata.h"
+#include "cpop.h"
+#include "bitmaps/16x16/mail_get.xpm"
+#include "bitmaps/16x16/folder_new.xpm"
+#include "bitmaps/16x16/filenew.xpm"
+#include "bitmaps/contactnew.xpm"
+#include "bitmaps/contactdelete.xpm"
+#include "bitmaps/contactsave.xpm"
+#include "bitmaps/contactclose.xpm"
+#include "bitmaps/contactprint.xpm"
+#include "bitmaps/editundo.xpm"
+#include "bitmaps/editcut.xpm"
+#include "bitmaps/editcopy.xpm"
+#include "bitmaps/editpaste.xpm"
+#include "bitmaps/editfind.xpm"
+#include "bitmaps/helpcontents.xpm"
+#include "bitmaps/helpcontext.xpm"
+//#include <dbconnection.h>
+
+class QLabel;
 
 
-#define VERSION "0.1"
-
-
-class CEmail : public QVBox
+class CEmail : public QWidget
 {
   Q_OBJECT    
+//  Q_ENUMS(Mode)
+//  Q_PROPERTY(Mode mode READ mode WRITE setMode)
+//  Q_PROPERTY(QString fileName READ fileName WRITE setFileName)
 
 public:
   CEmail (QWidget *parent=0, const char *name=0, int wflags=0);
-
+  
   static QString name();
   static QString group();
   static QPixmap icon();
   static QString toolTip();
   static QString whatsThis();
   static QString summary();
-  static void    offeredObjects (QListViewItem* item);
   
-protected:  
-  void initActions       ();
-  void initMenubar       ();
-  void initToolbar       ();
-  void initStatusbar     ();
-  void setContentChanged (bool flag);
-  bool hasContentChanged ();
+ protected:
+  void initMenubar();
+  void initAction();
+  void initToolbar();
   
-protected slots:
-  void slotEnableSaving     (bool);
-  void slotEnableDeleting   (bool);
-  void slotEnablePrinting   (bool);
- 
+public slots:
+  void downloadEmails();
+  void updateAllViews();
+  
 private slots:
-  void slotEmailNew 		();
-  void slotEmailDelete	    ();
-  void slotEmailSave		();
-  void slotEmailClose	    ();
-  void slotEmailPrint	    ();
 
-  void slotEditUndo			();
-  void slotEditCut			();
-  void slotEditCopy			();
-  void slotEditPaste		();
-
-  void slotViewToolBar		(bool toggle);
-  void slotViewStatusBar	(bool toggle);
-  
-  void slotHelpContents		();
-  void slotHelpWhatsThis	();
-  void slotHelpAbout		();
-  
-  void slotStatusHelpMsg	(const QString &text);
- 
 private:
   QSqlDatabase*   mDB;
   CUserData*      mCurrentUser;
-
-  QMenuBar*       mMenubar;
-  QPopupMenu*	  mEmailMenu;
-  QPopupMenu*	  mEditMenu;
-  QPopupMenu*	  mViewMenu;
-  QPopupMenu*	  mHelpMenu;
-
-  QToolBar*       mEmailToolbar;
-  QStatusBar*     mStatusbar;
+  bool updateTree();  
+  CPOP*         myPOPConnection;
+ 
+  QLabel*       mLabel;
   
-  QAction* 		  mEmailNew;
-  QAction* 		  mEmailDelete;
-  QAction* 		  mEmailSave;
-  QAction* 		  mEmailClose;
-  QAction* 		  mEmailPrint;
-                  
-  QAction* 		  mEditUndo;
-  QAction* 		  mEditCut;
-  QAction* 		  mEditCopy;
-  QAction* 		  mEditPaste;
-                  
-  QAction* 		  mViewToolBar;
-  QAction* 		  mViewStatusBar;
-                  
-  QAction* 		  mHelpContents;
-  QAction* 		  mHelpWhatsThis;
-  QAction* 		  mHelpAboutApp;
+  QMenuBar*     mMenubar;
+  QToolBar*     mEmailToolbar;
 
-  QLabel*         mInfo;
+  QPopupMenu*   mEmailMenu;
+  QPopupMenu*   mEditMenu;
+  QPopupMenu*   mEmailDirectory;
+  QPopupMenu*   mMessages;
+
+  QAction*      mEmailNew;
+  QAction*      mSaveUnder;
+  QAction*      mPrintMail;
+  QAction*      mDownloadEmail;
+  QAction*      mDownloadEmailin;
+  QAction*      mUnSendMessages;
+  QAction*      mClose;
+
+  QAction*      mEditCut;
+  QAction*      mEditCopy;
+  QAction*      mEditUndo;
+  QAction*      mEditPaste;
+  QAction*      mEditSearchin;
+  QAction*      mEditSearchall;
+
+  QAction*      mDirectoryNew;
+  QAction*      mProperty;
+  QAction*      mCompress;
+  QAction*      mMakeEmpty;
+  QAction*      mDeleteFolder;
+  QAction*      mHTMLView;
+  QAction*      mGroupMail;
+
+  QAction*      mNewMessages;
+
+  QSplitter*    mVertSplitter;
+  QSplitter*    mHoriSplitter;
+  QListView*    mEmailTree;
+  QListView*    mEmails;
+  QTextEdit*    mEmailText;
+  
 };
 
 #endif
