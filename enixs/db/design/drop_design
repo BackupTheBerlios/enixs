@@ -1,0 +1,13 @@
+#!/bin/sh
+
+if [ $# -gt 0 ]
+then
+    DB=$1
+else
+    DB=ENIXSDB
+fi
+
+/opt/sapdb/depend/bin/repmcli -E 50 -u admin,enixsadm -d $DB -b drop_design.rep
+
+
+exit 0

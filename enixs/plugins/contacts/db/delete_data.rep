@@ -1,0 +1,15 @@
+DELETE FROM contacts_persons
+/
+DELETE FROM contacts_communications
+/
+DELETE FROM contacts_comm_types
+/
+DELETE FROM contacts_addresses
+/
+DELETE FROM contacts_address_types
+/
+DELETE FROM contacts_jobs
+/
+DELETE FROM contacts_friends
+/
+DELETE FROM contacts_rights

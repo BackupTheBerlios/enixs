@@ -1,0 +1,13 @@
+[check]
+QMAKE_CACHE_VERSION = 1.02a
+QMAKE_ABSOLUTE_SOURCE_PATH = 
+MOC_DIR = 
+UI_DIR = 
+UI_HEADERS_DIR = 
+UI_SOURCES_DIR = 
+[depend]
+util.cpp = util.h
+util.h = 
+[mocable]
+util.h = *qmake_ignore*
+util.cpp = *qmake_ignore*

@@ -1,0 +1,11 @@
+DROP TABLE contacts_persons
+/
+DROP TABLE contacts_communications
+/
+DROP TABLE contacts_addresses
+/
+DROP TABLE contacts_jobs
+/
+DROP TABLE contacts_friends
+/
+DROP TABLE contacts_rights

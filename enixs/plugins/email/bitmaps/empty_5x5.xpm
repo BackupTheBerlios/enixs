@@ -1,0 +1,9 @@
+/* XPM */
+static const char * empty_5x5[] = {
+"5 5 1 1",
+" 	c None",
+"     ",
+"     ",
+"     ",
+"     ",
+"     "};

@@ -1,0 +1,15 @@
+Basic Installation
+==================
+
+The simplest way to compile and install EniXs is:
+
+  1. Type 'make' to compile the package.
+
+  2. Type 'make dist' to create a TAR archive for installation.
+
+  3. Run the install program 'install.sh' as root to install
+     the package. You are requested to enter an installation path.
+
+  4. Type 'enixs' (--help for displaying command line options) for
+     starting the EniXs application.
+

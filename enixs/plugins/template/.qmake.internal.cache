@@ -1,0 +1,19 @@
+[check]
+QMAKE_CACHE_VERSION = 1.02a
+QMAKE_ABSOLUTE_SOURCE_PATH = 
+MOC_DIR = 
+UI_DIR = 
+UI_HEADERS_DIR = 
+UI_SOURCES_DIR = 
+[depend]
+calendar.cpp = calendar.h
+calendar.h = 
+calendar.xpm = 
+plugin.cpp = plugin.h calendar.h calendar.xpm ../../enixs/plugin/pluginfactory.h
+plugin.h = ../../enixs/plugin/pluginfactory.h
+../../enixs/plugin/pluginfactory.h = 
+[mocable]
+plugin.h = *qmake_ignore*
+calendar.h = moc_calendar.cpp
+plugin.cpp = *qmake_ignore*
+calendar.cpp = *qmake_ignore*

@@ -1,0 +1,14 @@
+[check]
+QMAKE_CACHE_VERSION = 1.02a
+QMAKE_ABSOLUTE_SOURCE_PATH = 
+MOC_DIR = 
+UI_DIR = 
+UI_HEADERS_DIR = 
+UI_SOURCES_DIR = 
+[depend]
+userdata.cpp = userdata.h ../util/util.h
+userdata.h = 
+../util/util.h = 
+[mocable]
+userdata.h = *qmake_ignore*
+userdata.cpp = *qmake_ignore*

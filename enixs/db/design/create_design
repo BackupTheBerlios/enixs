@@ -1,0 +1,21 @@
+#!/bin/sh
+
+if [ $# -gt 0 ]
+then
+    DB=$1
+else
+    DB=ENIXSDB
+fi
+
+#----------------------------------------------------------------
+# Create the system administrator first.
+#----------------------------------------------------------------
+/opt/sapdb/depend/bin/repmcli -u dba,dba -d $DB -b create_admin.rep
+
+#----------------------------------------------------------------
+# Load the database design.
+#----------------------------------------------------------------
+/opt/sapdb/depend/bin/repmcli -E 50 -u admin,enixsadm -d $DB -b create_design.rep
+
+
+exit 0

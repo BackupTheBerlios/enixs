@@ -1,0 +1,144 @@
+CREATE TABLE contacts_persons
+(
+  person_id           INTEGER,
+  owner				  INTEGER,
+  name                VARCHAR(128),
+  name_suffix		  VARCHAR(16),
+  first_name          VARCHAR(128),
+  title				  VARCHAR(32),
+  company      		  VARCHAR(128),
+  profession   		  VARCHAR(128),
+  birthday            DATE,
+  nickname            VARCHAR(128),
+  spouse              VARCHAR(128),
+  children			  VARCHAR(255),
+  hobbies			  VARCHAR(255),
+  category			  SMALLINT,
+  private			  BOOLEAN DEFAULT FALSE,
+  male				  BOOLEAN,
+  photo				  LONG BYTE,
+  photo_available	  BOOLEAN,
+  comment             VARCHAR(1024),
+  created			  TIMESTAMP DEFAULT TIMESTAMP,
+  last_modified       TIMESTAMP DEFAULT TIMESTAMP,
+  PRIMARY KEY (person_id)
+)
+/
+CREATE TABLE contacts_communications
+(
+  comm_id             INTEGER,
+  person_id           INTEGER,
+  type                SMALLINT,
+  number     		  VARCHAR(255),
+  created			  TIMESTAMP DEFAULT TIMESTAMP,
+  last_modified       TIMESTAMP DEFAULT TIMESTAMP,
+  PRIMARY KEY (comm_id)
+)
+/
+CREATE TABLE contacts_addresses
+(
+  address_id          INTEGER,
+  person_id           INTEGER,
+  type                SMALLINT,
+  street              VARCHAR(128),
+  zip                 CHAR(8),
+  city                VARCHAR(128),
+  state               VARCHAR(128),
+  country             VARCHAR(128),
+  created			  TIMESTAMP DEFAULT TIMESTAMP,
+  last_modified       TIMESTAMP DEFAULT TIMESTAMP,
+  PRIMARY KEY (address_id)
+)
+/
+CREATE TABLE contacts_jobs
+(
+  job_id              INTEGER,
+  person_id           INTEGER,
+  company             VARCHAR(128),
+  activity   		  VARCHAR(128),
+  department          VARCHAR(128),
+  manager             VARCHAR(128),
+  assistant           VARCHAR(128),
+  created			  TIMESTAMP DEFAULT TIMESTAMP,
+  last_modified       TIMESTAMP DEFAULT TIMESTAMP,
+  PRIMARY KEY (job_id)
+)
+/
+CREATE TABLE contacts_friends
+(
+  person_id           INTEGER,
+  id         		  INTEGER,
+  type                SMALLINT,
+  created			  TIMESTAMP DEFAULT TIMESTAMP,
+  last_modified       TIMESTAMP DEFAULT TIMESTAMP,
+  PRIMARY KEY (person_id, id)
+)
+/
+CREATE TABLE contacts_rights
+(
+  person_id           INTEGER,
+  owner_read 		  BOOLEAN DEFAULT TRUE,
+  owner_write         BOOLEAN DEFAULT TRUE,
+  owner_delete        BOOLEAN DEFAULT TRUE,
+  owner_link          BOOLEAN DEFAULT TRUE,
+  friend_read 		  BOOLEAN DEFAULT TRUE,
+  friend_write        BOOLEAN DEFAULT TRUE,
+  friend_delete       BOOLEAN DEFAULT TRUE,
+  friend_link         BOOLEAN DEFAULT TRUE,
+  all_read 		  	  BOOLEAN DEFAULT TRUE,
+  all_write           BOOLEAN DEFAULT FALSE,
+  all_delete          BOOLEAN DEFAULT FALSE,
+  all_link            BOOLEAN DEFAULT TRUE,
+  created			  TIMESTAMP DEFAULT TIMESTAMP,
+  last_modified       TIMESTAMP DEFAULT TIMESTAMP,
+  PRIMARY KEY (person_id)
+)
+/
+GRANT INSERT, SELUPD, DELETE ON contacts_persons, contacts_communications, contacts_addresses, contacts_jobs, contacts_friends, contacts_rights TO standard
+/
+GRANT SELECT ON contacts_persons, contacts_communications, contacts_addresses, contacts_jobs, contacts_friends, contacts_rights TO restricted
+/
+/
+/
+/
+/ Some test data
+/
+INSERT INTO contacts_persons VALUES (0, 1, 'Müller', 'Sen.', 'Karl', 'Dipl.-Ing.', 'SAP AG', 'Maschinenbau-Ingenier', '19490420', 'Charly', 'Sabine', 'Monika(17), Klaus(12)', 'Fußball, Golf, Lesen', 0, FALSE, TRUE, '', FALSE, 'Ist ein guter Freund von Bernhard Schmidt', TIMESTAMP, TIMESTAMP)
+/
+INSERT INTO contacts_persons VALUES (1, 1, 'Schmidt', '', 'Bernhard', '', 'Microsoft GmbH', 'Elektro-Meister', '19561001', '', 'Charlotte', '', 'Segeln', 1, FALSE, TRUE, '', FALSE, 'Ist ein guter Freund von Karl Müller', TIMESTAMP, TIMESTAMP)
+/
+INSERT INTO contacts_communications VALUES (0, 0, 0, '01234-567890', TIMESTAMP, TIMESTAMP)
+/
+INSERT INTO contacts_communications VALUES (1, 0, 1, '04321-98765', TIMESTAMP, TIMESTAMP)
+/
+INSERT INTO contacts_communications VALUES (2, 0, 9, 'karl.mueller@sap.com', TIMESTAMP, TIMESTAMP)
+/
+INSERT INTO contacts_communications VALUES (3, 0, 11, 'http://www.sap.com', TIMESTAMP, TIMESTAMP)
+/
+INSERT INTO contacts_communications VALUES (4, 1, 0, '01111-222222', TIMESTAMP, TIMESTAMP)
+/
+INSERT INTO contacts_communications VALUES (5, 1, 2, '01111-333333', TIMESTAMP, TIMESTAMP)
+/
+INSERT INTO contacts_communications VALUES (6, 1, 8, 'bernhard.schmidt@t-online.de', TIMESTAMP, TIMESTAMP)
+/
+INSERT INTO contacts_addresses VALUES (0, 0, 1, 'Neurottstr. 20', '61770', 'Walldorf', 'Baden-Württemberg', 'Deutschland', TIMESTAMP, TIMESTAMP)
+/
+INSERT INTO contacts_addresses VALUES (1, 1, 0, 'Hauptstr. 2', '12345', 'Neustadt', 'Hessen', 'Deutschland', TIMESTAMP, TIMESTAMP)
+/
+INSERT INTO contacts_addresses VALUES (2, 1, 1, 'Nebenstr. 100', '98765', 'Altstadt', 'Bayern', 'Deutschland', TIMESTAMP, TIMESTAMP)
+/
+INSERT INTO contacts_jobs VALUES (0, 0, 'SAP AG', 'Abteilungsleiter', 'Basis Entwicklung', 'Karl-Heinz Hess', 'Markus Baier', TIMESTAMP, TIMESTAMP)
+/
+INSERT INTO contacts_jobs VALUES (1, 0, 'SAP SI AG', 'Aufsichtsrat', '', '', '', TIMESTAMP, TIMESTAMP)
+/
+INSERT INTO contacts_jobs VALUES (2, 1, 'Microsoft GmbH', 'Geschäftsführer', 'Geschäftsleitung', '', 'Stefanie Kuntz', TIMESTAMP, TIMESTAMP)
+/
+INSERT INTO contacts_friends VALUES (0, 2, 0, TIMESTAMP, TIMESTAMP)
+/
+INSERT INTO contacts_friends VALUES (0, 3, 0, TIMESTAMP, TIMESTAMP)
+/
+INSERT INTO contacts_friends VALUES (0, 1, 1, TIMESTAMP, TIMESTAMP)
+/
+INSERT INTO contacts_rights VALUES (0, TRUE, TRUE, TRUE, TRUE, TRUE, TRUE, FALSE, FALSE, TRUE, FALSE, FALSE, FALSE, TIMESTAMP, TIMESTAMP)
+/
+INSERT INTO contacts_rights VALUES (1, TRUE, TRUE, TRUE, TRUE, TRUE, FALSE, FALSE, TRUE, TRUE, FALSE, FALSE, FALSE, TIMESTAMP, TIMESTAMP)

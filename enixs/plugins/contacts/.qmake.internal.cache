@@ -1,0 +1,37 @@
+[check]
+QMAKE_CACHE_VERSION = 1.02a
+QMAKE_ABSOLUTE_SOURCE_PATH = 
+MOC_DIR = 
+UI_DIR = 
+UI_HEADERS_DIR = 
+UI_SOURCES_DIR = 
+[depend]
+bitmaps/contactclose.xpm = 
+bitmaps/contactdelete.xpm = 
+bitmaps/contactnew.xpm = 
+bitmaps/contactprint.xpm = 
+contacts.cpp = contacts.h bitmaps/contactnew.xpm bitmaps/contactdelete.xpm bitmaps/contactsave.xpm bitmaps/contactclose.xpm bitmaps/contactprint.xpm bitmaps/editundo.xpm bitmaps/editcut.xpm bitmaps/editcopy.xpm bitmaps/editpaste.xpm bitmaps/editfind.xpm bitmaps/helpcontents.xpm bitmaps/helpcontext.xpm bitmaps/contacts.xpm bitmaps/group.xpm bitmaps/man.xpm bitmaps/woman.xpm general/general.h
+contacts.h = general/general.h
+bitmaps/contacts.xpm = 
+bitmaps/contactsave.xpm = 
+bitmaps/editcopy.xpm = 
+bitmaps/editcut.xpm = 
+bitmaps/editfind.xpm = 
+bitmaps/editpaste.xpm = 
+bitmaps/editundo.xpm = 
+general/general.cpp = general/general.h
+general/general.h = 
+bitmaps/group.xpm = 
+bitmaps/helpcontents.xpm = 
+bitmaps/helpcontext.xpm = 
+bitmaps/man.xpm = 
+plugin.cpp = plugin.h contacts.h bitmaps/contacts.xpm general/general.h
+plugin.h = 
+bitmaps/woman.xpm = 
+[mocable]
+plugin.h = *qmake_ignore*
+contacts.h = moc_contacts.cpp
+general/general.h = general/moc_general.cpp
+plugin.cpp = *qmake_ignore*
+contacts.cpp = *qmake_ignore*
+general/general.cpp = *qmake_ignore*

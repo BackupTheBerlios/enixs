@@ -1,0 +1,12 @@
+#!/bin/sh
+
+if [ $# -gt 0 ]
+then
+    ./drop_design $1
+    ./create_design $1
+else
+    ./drop_design
+    ./create_design
+fi
+
+exit 0

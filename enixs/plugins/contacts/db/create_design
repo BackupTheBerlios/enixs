@@ -1,0 +1,16 @@
+#!/bin/sh
+
+if [ $# -gt 0 ]
+then
+    DB=$1
+else
+    DB=ENIXSDB
+fi
+
+#----------------------------------------------------------------
+# Load the database design.
+#----------------------------------------------------------------
+/opt/sapdb/depend/bin/repmcli -u admin,enixsadm -d $DB -b create_design.rep
+
+
+exit 0

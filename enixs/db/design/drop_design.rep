@@ -1,0 +1,23 @@
+DROP TABLE enixs_users
+/
+DROP TABLE enixs_groups
+/
+DROP TABLE enixs_users_in_groups
+/
+DROP TABLE enixs_roles
+/
+DROP TABLE enixs_categories
+/
+DROP TABLE enixs_user_config
+/
+DROP USER u1
+/
+DROP USER u2
+/
+DROP USER u3
+/
+DROP ROLE administrator
+/
+DROP ROLE standard
+/
+DROP ROLE restricted

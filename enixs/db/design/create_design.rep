@@ -1,0 +1,121 @@
+CREATE TABLE enixs_users
+(
+  user_id           INTEGER,
+  name              VARCHAR(128),
+  role_id			SMALLINT,
+  comment           VARCHAR(1024),
+  created			TIMESTAMP DEFAULT TIMESTAMP,
+  last_modified     TIMESTAMP DEFAULT TIMESTAMP,
+  PRIMARY KEY (user_id)
+)
+/
+CREATE TABLE enixs_groups
+(
+  group_id          INTEGER,
+  name              VARCHAR(128),
+  contact			VARCHAR(128),
+  comment           VARCHAR(1024),
+  created			TIMESTAMP DEFAULT TIMESTAMP,
+  last_modified     TIMESTAMP DEFAULT TIMESTAMP,
+  PRIMARY KEY (group_id)
+)
+/
+CREATE TABLE enixs_users_in_groups
+(
+  user_id           INTEGER,
+  group_id          INTEGER
+)
+/
+CREATE TABLE enixs_roles
+(
+  role_id           SMALLINT,
+  name              VARCHAR(128),
+  comment           VARCHAR(1024),
+  created			TIMESTAMP DEFAULT TIMESTAMP,
+  last_modified     TIMESTAMP DEFAULT TIMESTAMP,
+  PRIMARY KEY (role_id)
+)
+/
+CREATE TABLE enixs_categories
+(
+  cat_id            SMALLINT,
+  language			VARCHAR(8),
+  name              VARCHAR(128),
+  PRIMARY KEY (cat_id, language)
+)
+/
+CREATE TABLE enixs_user_config
+(
+  user_id           INTEGER,
+  description		VARCHAR(128),
+  conf_value        VARCHAR(128),
+  PRIMARY KEY (user_id, description)
+)
+/
+INSERT INTO enixs_roles (role_id, name, comment) VALUES (0, 'Administrator', 'System administrator of the EniXs system')
+/
+INSERT INTO enixs_roles (role_id, name, comment) VALUES (1, 'Standard', 'Normal EniXs user')
+/
+INSERT INTO enixs_roles (role_id, name, comment) VALUES (2, 'Restricted', 'User with restricted access to the EniXs system')
+/
+INSERT INTO enixs_categories VALUES (0, 'de', 'Firma')
+/
+INSERT INTO enixs_categories VALUES (1, 'de', 'Privat')
+/
+INSERT INTO enixs_categories VALUES (2, 'de', 'Familie')
+/
+CREATE ROLE administrator
+/
+CREATE ROLE standard
+/
+CREATE ROLE restricted
+/
+GRANT SELECT ON enixs_users, enixs_groups, enixs_users_in_groups, enixs_roles TO standard
+/
+GRANT INSERT, SELUPD, DELETE ON enixs_categories, enixs_user_config TO standard
+/
+GRANT INSERT, SELUPD, DELETE ON enixs_user_config TO restricted
+/
+GRANT INSERT, SELUPD, DELETE ON enixs_users, enixs_groups, enixs_users_in_groups, enixs_roles, enixs_categories, enixs_user_config TO administrator
+/
+GRANT SELECT ON enixs_users, enixs_groups, enixs_users_in_groups, enixs_roles, enixs_categories TO restricted
+/
+/
+/  Some test data
+/
+INSERT INTO enixs_users (user_id, name, role_id, comment) VALUES (0, 'admin', 0, 'This is the magic master of the system')
+/
+INSERT INTO enixs_users (user_id, name, role_id, comment) VALUES (1, 'u1', 1, 'First standard test user')
+/
+INSERT INTO enixs_users (user_id, name, role_id, comment) VALUES (2, 'u2', 1, 'Second standard test user')
+/
+INSERT INTO enixs_users (user_id, name, role_id, comment) VALUES (3, 'u3', 2, 'Restricted test user')
+/
+INSERT INTO enixs_groups (group_id, name, contact, comment) VALUES (0, 'admin', 'Magic Admin', 'The system administrators group')
+/
+INSERT INTO enixs_groups (group_id, name, contact, comment) VALUES (1, 'test group', 'Ralf Schneider', 'The normal test group')
+/
+INSERT INTO enixs_users_in_groups VALUES (0, 0)
+/
+INSERT INTO enixs_users_in_groups VALUES (1, 1)
+/
+INSERT INTO enixs_users_in_groups VALUES (3, 1)
+/
+CREATE USER u1 PASSWORD u1 STANDARD NOT EXCLUSIVE
+/
+CREATE USER u2 PASSWORD u2 STANDARD NOT EXCLUSIVE
+/
+CREATE USER u3 PASSWORD u1 STANDARD NOT EXCLUSIVE
+/
+GRANT standard TO u1
+/
+GRANT standard TO u2
+/
+GRANT restricted TO u3
+/
+ALTER USER u1 DEFAULT ROLE standard
+/
+ALTER USER u2 DEFAULT ROLE standard
+/
+ALTER USER u3 DEFAULT ROLE restricted
+
