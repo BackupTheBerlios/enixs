@@ -25,7 +25,7 @@
 // Application specific includes.
 //=============================================================================
 #include "plugin.h"
-#include "qsapdb.h"
+#include "driver.h"
 
 //=============================================================================
 // Constructor of the plugin class.
