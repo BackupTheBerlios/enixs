@@ -5,3 +5,9 @@ DELETE FROM enixs_groups
 DELETE FROM enixs_users_in_groups
 /
 DELETE FROM enixs_roles
+/
+DELETE FROM enixs_categories
+/
+DELETE FROM enixs_user_config
+/
+DELETE FROM enixs_sys_config

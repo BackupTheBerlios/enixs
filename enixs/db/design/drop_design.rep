@@ -10,6 +10,8 @@ DROP TABLE enixs_categories
 /
 DROP TABLE enixs_user_config
 /
+DROP TABLE enixs_sys_config
+/
 DROP USER u1
 /
 DROP USER u2

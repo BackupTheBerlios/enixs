@@ -52,6 +52,13 @@ CREATE TABLE enixs_user_config
   PRIMARY KEY (user_id, description)
 )
 /
+CREATE TABLE enixs_sys_config
+(
+  description		VARCHAR(128),
+  conf_value        VARCHAR(128),
+  PRIMARY KEY (description)
+)
+/
 INSERT INTO enixs_roles (role_id, name, comment) VALUES (0, 'Administrator', 'System administrator of the EniXs system')
 /
 INSERT INTO enixs_roles (role_id, name, comment) VALUES (1, 'Standard', 'Normal EniXs user')
@@ -70,7 +77,7 @@ CREATE ROLE standard
 /
 CREATE ROLE restricted
 /
-GRANT SELECT ON enixs_users, enixs_groups, enixs_users_in_groups, enixs_roles TO standard
+GRANT SELECT ON enixs_users, enixs_groups, enixs_users_in_groups, enixs_roles, enixs_sys_config TO standard
 /
 GRANT INSERT, SELUPD, DELETE ON enixs_categories, enixs_user_config TO standard
 /
@@ -78,7 +85,7 @@ GRANT INSERT, SELUPD, DELETE ON enixs_user_config TO restricted
 /
 GRANT INSERT, SELUPD, DELETE ON enixs_users, enixs_groups, enixs_users_in_groups, enixs_roles, enixs_categories, enixs_user_config TO administrator
 /
-GRANT SELECT ON enixs_users, enixs_groups, enixs_users_in_groups, enixs_roles, enixs_categories TO restricted
+GRANT SELECT ON enixs_users, enixs_groups, enixs_users_in_groups, enixs_roles, enixs_categories, enixs_user_config, enixs_sys_config TO restricted
 /
 /
 /  Some test data
@@ -100,6 +107,8 @@ INSERT INTO enixs_users_in_groups VALUES (0, 0)
 INSERT INTO enixs_users_in_groups VALUES (1, 1)
 /
 INSERT INTO enixs_users_in_groups VALUES (3, 1)
+/
+INSERT INTO enixs_sys_config VALUES ('Default Language', 'de')
 /
 CREATE USER u1 PASSWORD u1 STANDARD NOT EXCLUSIVE
 /
