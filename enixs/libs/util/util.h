@@ -35,6 +35,7 @@
 #include <qcombobox.h>
 #include <qlabel.h>
 #include <qmessagebox.h>
+#include <qasciidict.h>
 
 
 //------------------------------------------------------------------------------
@@ -42,13 +43,13 @@
 //------------------------------------------------------------------------------
 #define FREE_PTR(p)       		if (p) { delete p; p = 0; }
 
-#define SHOW_DB_ERROR(text, sql)	QMessageBox::critical (this, \
-                                      QObject::tr("ODBC-Fehler"), text + ":\n\n" + \
-                                      mDB->lastError().databaseText() + \
-                                      QObject::tr("\n\nDatei: ") + __FILE__ + \
-                                      QObject::tr("\nZeile: ") + \
+#define SHOW_DB_ERROR(text, query)	QMessageBox::critical (this, \
+                                      QObject::tr("ODBC Error"), text + ":\n\n" + \
+                                      query.lastError().databaseText() + \
+                                      QObject::tr("\n\nFile: ") + __FILE__ + \
+                                      QObject::tr("\nLine: ") + \
                                       QString::number (__LINE__) + \
-                                      QObject::tr("\nSQL: ") + sql, \
+                                      QObject::tr("\nSQL: ") + query.lastQuery(), \
                                       QMessageBox::Ok, QMessageBox::NoButton);
 
 #define DB_INT(value)				(value.isEmpty() ? QString("NULL") : value)
@@ -75,6 +76,7 @@ bool 	insertSelection 	(QListView *listview, QList<QListViewItem> & list,
                              int index=2);
 void 	removeSelection 	(QListView *listview, QList<QListViewItem> & list,
                              QList<QListViewItem> selection);
+void 	loadCategories  	(QAsciiDict<QString> &categories, QString user);
 
 #endif 
 

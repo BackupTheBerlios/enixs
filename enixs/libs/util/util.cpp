@@ -20,7 +20,14 @@
 //#
 //#############################################################################
 
+//=============================================================================
+// Include files for QT.
+//=============================================================================
 #include <qsqlquery.h>
+
+//=============================================================================
+// Application specific includes.
+//=============================================================================
 #include "util.h"
 
 //==============================================================================
@@ -307,5 +314,108 @@ void removeSelection (QListView *listview, QList<QListViewItem> & list,
   {
     listview->takeItem  (item);
     list.append      		(item);
+  }
+}
+
+//=============================================================================
+// Load the available categories.
+//=============================================================================
+void loadCategories (QAsciiDict<QString> &categories, QString user)
+{
+  QString   defaultLanguage, currentLanguage;
+  
+  //----------------------------------------------------------------------------
+  // Load the default language.
+  //----------------------------------------------------------------------------
+  QSqlQuery query ("SELECT conf_value FROM enixs_sys_config "
+                   "WHERE  description = 'Default Language'");
+  
+  if (!query.isActive())
+  {
+    QMessageBox::critical (0, QObject::tr("ODBC Error"), 
+                           QObject::tr ("Error during database query") + ":\n\n" +
+                           query.lastError().databaseText() +
+                           QObject::tr("\n\nDatei: ") + __FILE__ +
+                           QObject::tr("\nZeile: ") + QString::number (__LINE__) +
+                           QObject::tr("\nSQL: ") + query.lastQuery(),
+                           QMessageBox::Ok, QMessageBox::NoButton);
+    return;
+  }
+
+  query.first();
+  defaultLanguage = query.value(0).toString();
+
+  if (defaultLanguage.isEmpty())
+    return;
+  
+  //----------------------------------------------------------------------------
+  // Load the current language.
+  //----------------------------------------------------------------------------
+  query.exec ("SELECT conf_value FROM enixs_user_config "
+              "WHERE  description = 'Language' AND user_id = " + user);
+  
+  if (!query.isActive())
+  {
+    QMessageBox::critical (0, QObject::tr("ODBC Error"), 
+                           QObject::tr ("Error during database query") + ":\n\n" +
+                           query.lastError().databaseText() +
+                           QObject::tr("\n\nDatei: ") + __FILE__ +
+                           QObject::tr("\nZeile: ") + QString::number (__LINE__) +
+                           QObject::tr("\nSQL: ") + query.lastQuery(),
+                           QMessageBox::Ok, QMessageBox::NoButton);
+    return;
+  }
+
+  query.first();
+  currentLanguage = query.value(0).toString();
+  
+  if (currentLanguage.isEmpty())
+    return;
+  
+  //----------------------------------------------------------------------------
+  // Load the categories for the default language.
+  //----------------------------------------------------------------------------
+  query.exec ("SELECT cat_id, name FROM enixs_categories "
+              "WHERE  language = '" + defaultLanguage + "' ORDER BY cat_id");
+  
+  if (!query.isActive())
+  {
+    QMessageBox::critical (0, QObject::tr("ODBC-Fehler"), 
+                           QObject::tr ("Error during database query") + ":\n\n" +
+                           query.lastError().databaseText() +
+                           QObject::tr("\n\nDatei: ") + __FILE__ +
+                           QObject::tr("\nZeile: ") + QString::number (__LINE__) +
+                           QObject::tr("\nSQL: ") + query.lastQuery(),
+                           QMessageBox::Ok, QMessageBox::NoButton);
+    return;
+  }
+
+  while (query.next())
+    categories.insert ((const char *)query.value(0).toString(), 
+                       new QString (query.value(1).toString()));
+  
+  //----------------------------------------------------------------------------
+  // Load the categories for the current language.
+  //----------------------------------------------------------------------------
+  if (defaultLanguage != currentLanguage)
+  {
+    query.exec ("SELECT cat_id, name FROM enixs_categories "
+                "WHERE  language = '" + currentLanguage + "' ORDER BY cat_id");
+  
+    if (!query.isActive())
+    {
+      QMessageBox::critical (0, QObject::tr("ODBC-Fehler"), 
+                             QObject::tr("Error during database query") + ":\n\n" +
+                             query.lastError().databaseText() + 
+                             QObject::tr("\n\nDatei: ") + __FILE__ + 
+                             QObject::tr("\nZeile: ") + QString::number (__LINE__) +
+                             QObject::tr("\nSQL: ") + query.lastQuery(), 
+                             QMessageBox::Ok, QMessageBox::NoButton);
+      return;
+    }
+
+    while (query.next())
+      categories.insert ((const char *)query.value(0).toString(), 
+                         new QString (query.value(1).toString()));
   }
 }
