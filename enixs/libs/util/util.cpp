@@ -20,11 +20,10 @@
 //#
 //#############################################################################
 
+#include <qsqlquery.h>
 #include "util.h"
 
 //==============================================================================
-// formatDate
-//
 // Converts the given String to a valid date string depending on the current
 // locale.
 //==============================================================================
@@ -69,8 +68,6 @@ QString formatDate (QString datetime)
 }
 
 //==============================================================================
-// formatTime
-//
 // Converts the given String to a valid time string depending on the current
 // locale.
 //==============================================================================
@@ -97,8 +94,6 @@ QString formatTime (QString datetime)
 }
 
 //==============================================================================
-// formatDateTime
-//
 // Converts the given String to a valid date and time string depending on the
 // current locale.
 //==============================================================================
@@ -117,8 +112,6 @@ QString formatDateTime (QString datetime)
 }
 
 //==============================================================================
-// textToDB
-//
 // Mask all the "invalid" characters in the given string.
 //==============================================================================
 QString textToDB (QString text)
@@ -129,8 +122,6 @@ QString textToDB (QString text)
 }
 
 //==============================================================================
-// dateToDB
-//
 // Converts the given date string in the format YYYY-MM-DD.
 //==============================================================================
 QString dateToDB (QString date)
@@ -177,8 +168,6 @@ QString dateToDB (QString date)
 }
 
 //==============================================================================
-// currencyToDB
-//
 // Remove dots from the given currency value.
 //==============================================================================
 QString currencyToDB (QString value)
@@ -190,8 +179,6 @@ QString currencyToDB (QString value)
 }
 
 //==============================================================================
-// currentDate
-//
 // Converts the current date to a valid date string depending on the current
 // locale.
 //==============================================================================
@@ -201,8 +188,6 @@ QString currentDate ()
 }
 
 //==============================================================================
-// createTempFilename
-//
 // Generate a unique filename for a temporary file.
 //==============================================================================
 QString createTempFilename (QString suffix)
@@ -221,8 +206,6 @@ QString createTempFilename (QString suffix)
 }
 
 //==============================================================================
-// deleteFile
-//
 // Delete the given file.
 //==============================================================================
 void deleteFile (QString filename)
@@ -232,8 +215,6 @@ void deleteFile (QString filename)
 }
 
 //==============================================================================
-// viewFile
-//
 // View the given file.
 //==============================================================================
 void viewFile (QString filename)
@@ -243,8 +224,6 @@ void viewFile (QString filename)
 }
 
 //==============================================================================
-// printFile
-//
 // Print the given file.
 //==============================================================================
 void printFile (QString filename)
@@ -255,8 +234,6 @@ void printFile (QString filename)
 }
 
 //==============================================================================
-// deleteTempFiles
-//
 // Delete all temporary files created since program start.
 //==============================================================================
 void deleteTempFiles ()
@@ -270,8 +247,6 @@ void deleteTempFiles ()
 }
 
 //==============================================================================
-// insertSelection
-//
 // Insert the given list of QListViewItems to the given listview and check if
 // each item is already in the listview.
 //==============================================================================
@@ -321,8 +296,6 @@ bool insertSelection (QListView *listview, QList<QListViewItem> & list,
 }
 
 //==============================================================================
-// removeSelection
-//
 // Remove the given list of QListViewItems from the given listview.
 //==============================================================================
 void removeSelection (QListView *listview, QList<QListViewItem> & list,
