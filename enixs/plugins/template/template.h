@@ -60,6 +60,10 @@ public:
   static QString whatsThis();
   static QString summary();
   static void    offeredObjects (QListViewItem* item);
+      
+signals:
+  void selectedItem (QString, QString);
+  void closeWindow  ();
   
 protected:  
   void initActions       ();

@@ -363,7 +363,7 @@ void CTemplate::slotTemplateClose()
 {
   mStatusbar->message (tr("Closing <template>..."));
 
-  // Add your own code here.
+  emit closeWindow();
   
   mStatusbar->message (tr("Ready."));
 }
