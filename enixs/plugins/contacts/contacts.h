@@ -35,6 +35,7 @@
 #include <qtoolbar.h>
 #include <qstatusbar.h>
 #include <qsplitter.h>
+#include <qasciidict.h>
 #include <qsqldatabase.h>
 
 //=============================================================================
@@ -66,7 +67,9 @@ public:
   static QString whatsThis();
   static QString summary();
   static void    offeredObjects (QListViewItem* item);
-  
+
+  enum   TreeView  { Alphabetical, ByCompany, ByCategory };
+      
 signals:
   void selectedItem (QString, QString);
   
@@ -75,7 +78,7 @@ protected:
   void initMenubar       ();
   void initToolbar       ();
   void initStatusbar     ();
-  bool updateTree        ();
+  void loadTree          (TreeView type);
   bool checkRights       (QString id, QString owner, bool owner_read,
                           bool friends_read, bool all_read);
   QListViewItem *resetBranch (QString branch);
@@ -102,6 +105,9 @@ private slots:
   void slotEditCopy			();
   void slotEditPaste		();
 
+  void slotViewAlphabetical	();
+  void slotViewCompany     	();
+  void slotViewCategory    	();
   void slotViewToolBar		(bool toggle);
   void slotViewStatusBar	(bool toggle);
   
@@ -135,6 +141,9 @@ private:
   QAction* 		  mEditCopy;
   QAction* 		  mEditPaste;
                   
+  QAction* 		  mViewAlphabetical;
+  QAction* 		  mViewCompany;
+  QAction* 		  mViewCategory;
   QAction* 		  mViewToolBar;
   QAction* 		  mViewStatusBar;
                   
@@ -148,6 +157,8 @@ private:
   QListViewItem*  mSelectedItem;
   QListViewItem*  mLastSelectedItem;
   bool            mSelectedReadonly;
+  TreeView        mCurrentView;
+  QAsciiDict<QString> mCategories;
   
   QTabWidget*     mTab;
   CGeneral*       mGeneral;

@@ -48,6 +48,10 @@
 #include "bitmaps/editpaste.xpm"
 #include "bitmaps/editfind.xpm"
 
+#include "bitmaps/viewalpha.xpm"
+#include "bitmaps/viewcompany.xpm"
+#include "bitmaps/viewcategory.xpm"
+
 #include "bitmaps/helpcontents.xpm"
 #include "bitmaps/helpcontext.xpm"
 
@@ -115,7 +119,7 @@ CContacts::CContacts (QWidget *parent, const char *name, int wflags)
   //---------------------------------------------------------------------------
   // Load the tree items.
   //---------------------------------------------------------------------------
-  updateTree();
+  loadTree (Alphabetical);
 
   //---------------------------------------------------------------------------
   // Create the tab widget on the right side of the contacts window.
@@ -197,6 +201,7 @@ void CContacts::initActions()
 {
   QPixmap deleteIcon, saveIcon, newIcon, printIcon, closeIcon;
   QPixmap undoIcon, cutIcon, copyIcon, pasteIcon, findIcon;
+  QPixmap alphaIcon, companyIcon, categoryIcon;
   QPixmap contentsIcon, contextIcon, aboutIcon;
 
   //---------------------------------------------------------------------------
@@ -213,6 +218,10 @@ void CContacts::initActions()
   copyIcon 	   = QPixmap (editcopy);
   pasteIcon    = QPixmap (editpaste);
   findIcon 	   = QPixmap (editfind);
+
+  alphaIcon    = QPixmap (viewalpha);
+  companyIcon  = QPixmap (viewcompany);
+  categoryIcon = QPixmap (viewcategory);
 
   contentsIcon = QPixmap (helpcontents);
   contextIcon  = QPixmap (helpcontext);
@@ -287,12 +296,33 @@ void CContacts::initActions()
   //---------------------------------------------------------------------------
   // Create the actions for the View menu.
   //---------------------------------------------------------------------------
+  mViewAlphabetical = new QAction (tr("Alphabetical"), alphaIcon, 
+                                   tr("&Alphabetical"), 0, this);
+  mViewAlphabetical->setStatusTip (tr("Sort the tree items in alphabetical order"));
+  mViewAlphabetical->setWhatsThis (tr("Alphabetical\n\nSort the tree items in "
+                                      "alphabetical order"));
+  connect (mViewAlphabetical,SIGNAL(activated()),this,SLOT(slotViewAlphabetical()));
+
+  mViewCompany = new QAction (tr("By Company"), companyIcon, 
+                              tr("By &Company"), 0, this);
+  mViewCompany->setStatusTip (tr("Sort the tree items by company"));
+  mViewCompany->setWhatsThis (tr("By Company\n\nSort the tree items by company"));
+  connect (mViewCompany, SIGNAL(activated()), this, SLOT(slotViewCompany()));
+
+  mViewCategory = new QAction(tr("By Category"), categoryIcon, 
+                              tr("By Cate&gory"), 0, this);
+  mViewCategory->setStatusTip(tr("Sort the tree items by category"));
+  mViewCategory->setWhatsThis(tr("By Category\n\nSort the tree items by category"));
+  connect (mViewCategory, SIGNAL(activated()), this, SLOT(slotViewCategory()));
+
   mViewToolBar = new QAction (tr("Toolbar"), tr("Tool&bar"), 0, this, 0, true);
+  mViewToolBar->setOn        (true);
   mViewToolBar->setStatusTip (tr("Enables/disables the toolbar"));
   mViewToolBar->setWhatsThis (tr("Toolbar\n\nEnables/disables the toolbar"));
   connect (mViewToolBar, SIGNAL(toggled(bool)), this, SLOT(slotViewToolBar(bool)));
 
   mViewStatusBar = new QAction (tr("Statusbar"), tr("&Statusbar"), 0, this, 0,true);
+  mViewStatusBar->setOn        (true);
   mViewStatusBar->setStatusTip (tr("Enables/disables the statusbar"));
   mViewStatusBar->setWhatsThis (tr("Statusbar\n\nEnables/disables the statusbar"));
   connect (mViewStatusBar,SIGNAL(toggled(bool)),this,SLOT(slotViewStatusBar(bool)));
@@ -350,10 +380,13 @@ void CContacts::initMenubar()
   // Entries for the View menu.
   //---------------------------------------------------------------------------
   mViewMenu = new QPopupMenu();
-  mViewMenu->setCheckable (true);
 
-  mViewToolBar->addTo	(mViewMenu);
-  mViewStatusBar->addTo	(mViewMenu);
+  mViewAlphabetical->addTo  (mViewMenu);
+  mViewCompany->addTo       (mViewMenu);
+  mViewCategory->addTo      (mViewMenu);
+  mViewMenu->insertSeparator();
+  mViewToolBar->addTo	    (mViewMenu);
+  mViewStatusBar->addTo	    (mViewMenu);
 
   //---------------------------------------------------------------------------
   // Entries for the Help menu.
@@ -382,17 +415,21 @@ void CContacts::initMenubar()
 void CContacts::initToolbar()
 {
   mContactToolbar = new QToolBar ("Contact Operations", 0, this);
-  mContactToolbar->setFixedSize  (250, 25);
+  mContactToolbar->setFixedSize  (340, 25);
   
-  mContactNew->addTo	(mContactToolbar);
-  mContactDelete->addTo	(mContactToolbar);
-  mContactSave->addTo	(mContactToolbar);
-  mContactPrint->addTo	(mContactToolbar);
+  mContactNew->addTo	   (mContactToolbar);
+  mContactDelete->addTo	   (mContactToolbar);
+  mContactSave->addTo	   (mContactToolbar);
+  mContactPrint->addTo	   (mContactToolbar);
   mContactToolbar->addSeparator();
-  mEditUndo->addTo	    (mContactToolbar);
-  mEditCut->addTo	    (mContactToolbar);
-  mEditCopy->addTo	    (mContactToolbar);
-  mEditPaste->addTo	    (mContactToolbar);
+  mEditUndo->addTo	       (mContactToolbar);
+  mEditCut->addTo	       (mContactToolbar);
+  mEditCopy->addTo	       (mContactToolbar);
+  mEditPaste->addTo	       (mContactToolbar);
+  mContactToolbar->addSeparator();
+  mViewAlphabetical->addTo (mContactToolbar);
+  mViewCompany->addTo      (mContactToolbar);
+  mViewCategory->addTo     (mContactToolbar);
   mContactToolbar->addSeparator();
   QWhatsThis::whatsThisButton (mContactToolbar);
 }
@@ -408,12 +445,15 @@ void CContacts::initStatusbar()
 }
 
 //=============================================================================
-// Update the tree view.
+// Load the items for the tree view sorted by company.
 //=============================================================================
-bool CContacts::updateTree ()
+void CContacts::loadTree (TreeView type)
 {
-  QString          label;
-  QListViewItem*   item = 0;
+  QString          label, sql;
+  QListViewItem   *item = 0, *branch = 0;
+  QStringList      branches;
+
+  mCurrentView = type;
   
   //----------------------------------------------------------------------------
   // Disconnect all slots during loading.
@@ -426,18 +466,33 @@ bool CContacts::updateTree ()
   mRoot = resetBranch ("root");
 
   //----------------------------------------------------------------------------
-  // Load the items.
+  // Load the tree items.
   //----------------------------------------------------------------------------
-  QSqlQuery query ("SELECT A.name, A.first_name, A.name_suffix, A.person_id, "
-                   "A.male, A.owner, B.owner_read, B.friend_read, B.all_read "
-                   "FROM   contacts_persons A, contacts_rights B "
-                   "WHERE  A.person_id = B.person_id "
-                   "ORDER BY A.name, A.first_name");
+  sql = "SELECT A.name, A.first_name, A.name_suffix, A.person_id, A.male, A.owner, "
+               "A.company, A.category, B.owner_read, B.friend_read, B.all_read "
+        "FROM   contacts_persons A, contacts_rights B "
+        "WHERE  A.person_id = B.person_id ";
+
+  switch (type)
+  {
+    case Alphabetical:
+      sql += "ORDER BY A.name, A.first_name";
+      break;
+    case ByCompany:
+      sql += "ORDER BY A.company, A.name, A.first_name";
+      break;
+    case ByCategory:
+      sql += "ORDER BY A.category, A.name, A.first_name";
+      loadCategories (mCategories, mCurrentUser->id());
+      break;
+  }
+
+  QSqlQuery query (sql);
   
   if (!query.isActive())
   {
-    SHOW_DB_ERROR(tr ("Error during database query"), query.lastQuery())
-    return false;
+    SHOW_DB_ERROR(tr ("Error during database query"), query)
+    return;
   }
   
   while (query.next())
@@ -446,10 +501,41 @@ bool CContacts::updateTree ()
     // Check the user rights.
     //--------------------------------------------------------------------------
     if (!checkRights (query.value(3).toString(), query.value(5).toString(), 
-                      query.value(6).toBool(), query.value(7).toBool(), 
-                      query.value(8).toBool()))
+                      query.value(8).toBool(), query.value(9).toBool(), 
+                      query.value(10).toBool()))
       continue;
     
+    //--------------------------------------------------------------------------
+    // Check if we have to create a new branch.
+    //--------------------------------------------------------------------------
+    switch (type)
+    {
+      case Alphabetical:
+        branch = mRoot;
+        break;
+
+      case ByCompany:
+        if ((branch == 0) || (branch->text(0) != query.value(6).toString()))
+        {
+          branch = new QListViewItem (mRoot, branch, query.value(6).toString(), "", 
+                                      "branch");
+          item = 0;
+        }
+        break;
+
+      case ByCategory:
+        if (   (branch == 0) 
+            || (branch->text(0) != *mCategories[query.value(7).toString()]))
+        {
+          branch = new QListViewItem (mRoot, branch, 
+                                      *mCategories[query.value(7).toString()], 
+                                      "", "branch");
+          item = 0;
+        }
+        break;
+    }
+
+      
     //--------------------------------------------------------------------------
     // Insert a new item into the tree.
     //--------------------------------------------------------------------------
@@ -461,7 +547,7 @@ bool CContacts::updateTree ()
     if (!query.value(2).toString().isEmpty())
       label += " (" + query.value(2).toString() + ")";
     
-    item = new QListViewItem (mRoot, item, label, query.value(3).toString(), 
+    item = new QListViewItem (branch, item, label, query.value(3).toString(), 
                               "person");
 
     //--------------------------------------------------------------------------
@@ -480,7 +566,7 @@ bool CContacts::updateTree ()
   connect (mTree, SIGNAL (returnPressed  (QListViewItem *)),
            this,  SLOT   (slotLoadPerson (QListViewItem *)));
 
-  return true;
+  return;
 }
 
 //=============================================================================
@@ -510,7 +596,7 @@ bool CContacts::checkRights (QString id, QString owner, bool owner_read,
   
     if (!q1.isActive())
     {
-      SHOW_DB_ERROR(tr ("Error during database query"), q1.lastQuery());
+      SHOW_DB_ERROR(tr ("Error during database query"), q1);
       return false;
     }
   
@@ -534,7 +620,7 @@ bool CContacts::checkRights (QString id, QString owner, bool owner_read,
   
         if (!q2.isActive())
         {
-          SHOW_DB_ERROR(tr ("Error during database query"), q2.lastQuery());
+          SHOW_DB_ERROR(tr ("Error during database query"), q2);
           return false;
         }
   
@@ -734,7 +820,7 @@ bool CContacts::lockEntry (QString id)
   if (!query.isActive())
   {
     if (query.lastError().number() != 400)
-      SHOW_DB_ERROR(tr ("Error during locking"), query.lastQuery());
+      SHOW_DB_ERROR(tr ("Error during locking"), query);
 
     return false;
   }
@@ -756,7 +842,7 @@ void CContacts::unlockEntry()
     
     if (!query.isActive())
     {
-      SHOW_DB_ERROR(tr ("Error during unlocking"), mUnlockStatement);
+      SHOW_DB_ERROR(tr ("Error during unlocking"), query);
       return;
     }
   }
@@ -799,7 +885,7 @@ void CContacts::slotContactDelete()
   mSecurity->deleteData        (mSelectedItem->text(1));
   mSecurity->clearControls     ();
   
-  updateTree();
+  loadTree (mCurrentView);
   
   mStatusbar->message (tr("Ready."));
 }
@@ -826,9 +912,9 @@ void CContacts::slotContactSave()
   mSecurity->setCurrent      (current);
   mSecurity->saveChanges     ();
   
-  mDB->commit();
-  updateTree();
-  lockEntry (current);
+  mDB->commit ();
+  loadTree    (mCurrentView);
+  lockEntry   (current);
 
   mContactSave->setEnabled   (false);
   mContactDelete->setEnabled (true);
@@ -902,6 +988,42 @@ void CContacts::slotEditPaste()
 }
 
 //=============================================================================
+// SLOT:  Sort the tree item in alphabetical order.
+//=============================================================================
+void CContacts::slotViewAlphabetical()
+{
+  mStatusbar->message (tr("Sort tree items alphabetical..."));
+
+  loadTree (Alphabetical);
+
+  mStatusbar->message (tr("Ready."));
+}
+
+//=============================================================================
+// SLOT:  Sort the tree item by company.
+//=============================================================================
+void CContacts::slotViewCompany()
+{
+  mStatusbar->message (tr("Sort tree items by company..."));
+
+  loadTree (ByCompany);
+
+  mStatusbar->message (tr("Ready."));
+}
+
+//=============================================================================
+// SLOT:  Sort the tree item by category.
+//=============================================================================
+void CContacts::slotViewCategory()
+{
+  mStatusbar->message (tr("Sort tree items by category..."));
+
+  loadTree (ByCategory);
+
+  mStatusbar->message (tr("Ready."));
+}
+
+//=============================================================================
 // SLOT:  Toggle the toolbar on/off.
 //=============================================================================
 void CContacts::slotViewToolBar (bool toggle)
@@ -913,7 +1035,7 @@ void CContacts::slotViewToolBar (bool toggle)
   else
     mContactToolbar->hide();
 
- mStatusbar->message (tr("Ready."));
+  mStatusbar->message (tr("Ready."));
 }
 
 //=============================================================================

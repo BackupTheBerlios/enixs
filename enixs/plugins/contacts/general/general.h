@@ -33,6 +33,7 @@
 #include <qcombobox.h>
 #include <qlineedit.h>
 #include <qsqldatabase.h>
+#include <qasciidict.h>
 
 //=============================================================================
 // Application specific includes.
@@ -66,7 +67,6 @@ signals:
 
 protected:
   QString getNextID       ();
-  void    loadCategories  ();
   void    connectSlots    ();
   void    disconnectSlots ();
   void    setReadonly     (bool readonly);
@@ -106,6 +106,8 @@ private:
   bool			mContentChanged;
   bool			mReadonly;
   bool			mNew;
+
+  QAsciiDict<QString> mCategories;
 };
 
 #endif

@@ -73,7 +73,11 @@ CGeneral::CGeneral (QWidget *parent, const char *name, QSqlDatabase *db,
   mCategory->setMaximumWidth(150);
   mGrid->addWidget          (mCategory, 0, 2);
 
-  loadCategories();
+  loadCategories (mCategories, mCurrentUser->id());
+
+  QAsciiDictIterator<QString> it(mCategories);
+  for( ; it.current(); ++it )
+    mCategory->insertItem (*(it.current()));
   
   //----------------------------------------------------------------------------
   //  Name
@@ -220,13 +224,13 @@ void CGeneral::loadData (QString id, bool readonly)
   // Load the selected person.
   //----------------------------------------------------------------------------
   QSqlQuery query ("SELECT name, first_name, name_suffix, title, birthday, male, "
-                   "       company, profession, comment, photo_available "
+                   "       company, profession, comment, category, photo_available "
                    "FROM   contacts_persons "
                    "WHERE  person_id = " + id);
 
   if (!query.isActive())
   {
-    SHOW_DB_ERROR(tr ("Error during database query"), query.lastQuery());
+    SHOW_DB_ERROR(tr ("Error during database query"), query);
     return;
   }
 
@@ -263,11 +267,14 @@ void CGeneral::loadData (QString id, bool readonly)
   
   if (query.value(8).toString() != DBnull)
     mComment->setText (query.value(8).toString());
+  
+  if (query.value(9).toString() != DBnull)
+    mCategory->setCurrentItem (query.value(9).toInt());
 
   //----------------------------------------------------------------------------
   // Load the photo of the selected person.
   //----------------------------------------------------------------------------
-  if (query.value(9).toBool())
+  if (query.value(10).toBool())
   {
 #if 0
     filename = createTempFilename("png");
@@ -276,7 +283,7 @@ void CGeneral::loadData (QString id, bool readonly)
 
     if (mDB->readFile (sql, filename) == false)
     {
-      SHOW_DB_ERROR(tr ("Error during database query"), query.lastQuery());
+      SHOW_DB_ERROR(tr ("Error during database query"), query);
       return;
     }
 
@@ -316,7 +323,7 @@ void CGeneral::deleteData (QString id)
   //----------------------------------------------------------------------------
   if (!query.isActive())
   {
-    SHOW_DB_ERROR(tr ("Error during deleting the data"), query.lastQuery());
+    SHOW_DB_ERROR(tr ("Error during deleting the data"), query);
     return;
   }
 
@@ -374,7 +381,7 @@ QString CGeneral::saveChanges ()
   
   if (!query.isActive())
   {
-    SHOW_DB_ERROR(tr ("Error during writing of data"), query.lastQuery());
+    SHOW_DB_ERROR(tr ("Error during writing of data"), query);
     return "";
   }
 
@@ -398,7 +405,7 @@ QString CGeneral::getNextID ()
   
   if (!query.isActive())
   {
-    SHOW_DB_ERROR(tr ("Error during database query"), query.lastQuery());
+    SHOW_DB_ERROR(tr ("Error during database query"), query);
     return "";
   }
 
@@ -410,28 +417,6 @@ QString CGeneral::getNextID ()
   id = query.value(0).toInt();
 	
   return QString::number (++id);
-}
-
-//=============================================================================
-// Load the available categories.
-//=============================================================================
-void CGeneral::loadCategories ()
-{
-  //----------------------------------------------------------------------------
-  // Read the maximum person ID.
-  //----------------------------------------------------------------------------
-  QSqlQuery query ("SELECT name FROM enixs_categories WHERE language = 'de' "
-                   "ORDER BY name");
-  debug ("Hier muss noch was angepasst werden");
-  
-  if (!query.isActive())
-  {
-    SHOW_DB_ERROR(tr ("Error during database query"), query.lastQuery());
-    return;
-  }
-
-  while (query.next())
-    mCategory->insertItem (query.value(0).toString());
 }
 
 //=============================================================================
