@@ -24,6 +24,7 @@
 // Include files for QT.
 //=============================================================================
 #include <qsqlrecord.h>
+#include <qfile.h>
 
 #if defined (Q_OS_WIN32)
 #include <qt_windows.h>
@@ -110,7 +111,6 @@ bool QSAPDBHandles::checkDriver() const
 //=============================================================================
 void qWarnSAPDBHandle (int handleType, SQLHANDLE handle, QString* text, int* code)
 {
-  SQLINTEGER  nativeCode;
   SQLSMALLINT tmp;
   SQLRETURN   ret = SQL_ERROR;
   SQLCHAR     state[SQL_SQLSTATE_SIZE+1];
@@ -339,6 +339,39 @@ QString qGetStringData (SQLHANDLE hStmt, int index, SQLINTEGER& length,bool& isN
 }
 
 //=============================================================================
+// Read binary data from the database at a given index.
+//=============================================================================
+QByteArray qGetBinaryData (SQLHANDLE hStmt, int index, bool& isNull)
+{
+  QByteArray    fieldValue;
+  SQLINTEGER    length, numBytes, oldSize;
+  char          buffer[LONG_SEGMENT_SIZE];
+
+  //----------------------------------------------------------------------------
+  //  Read the binary data.
+  //----------------------------------------------------------------------------
+  while (SQLGetData (hStmt, index + 1, SQL_C_BINARY, buffer, 
+                     LONG_SEGMENT_SIZE, &length)
+         != SQL_NO_DATA)
+  {
+    if (length == SQL_NULL_DATA)
+    {
+      isNull = true;
+      return fieldValue;
+    }
+
+    numBytes = ((length > LONG_SEGMENT_SIZE) || (length == SQL_NO_TOTAL)) ? 
+               LONG_SEGMENT_SIZE : length;
+    
+    oldSize = fieldValue.size();
+    fieldValue.resize (fieldValue.size() + numBytes);
+    memcpy (fieldValue.data() + oldSize, buffer, numBytes);
+  }
+  
+  return fieldValue;
+}
+
+//=============================================================================
 // Read integer data from the database at a given index.
 //=============================================================================
 int qGetIntData (SQLHANDLE hStmt, int column, bool& isNull)
@@ -368,7 +401,6 @@ QSqlFieldInfo qMakeFieldInfo (const QSAPDBHandles* db, const QString& tablename,
 {
   QSqlFieldInfo info;
   SQLHANDLE     hStmt;
-  SQLRETURN     ret;
   bool          isNull;
   int           type;
   int           required;

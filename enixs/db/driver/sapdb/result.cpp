@@ -219,6 +219,7 @@ QVariant QSAPDBResult::data (int field)
   DATE_STRUCT       dateBuffer;
   TIME_STRUCT       timeBuffer;
   TIMESTAMP_STRUCT  datetimeBuffer;
+  SQLCHAR*          byteBuffer;
   QString           fieldValue;
   
   if (mFieldCache.contains (field))
@@ -303,12 +304,12 @@ QVariant QSAPDBResult::data (int field)
         if (   (ret == SQL_SUCCESS || ret == SQL_SUCCESS_WITH_INFO) 
             && (length != SQL_NULL_DATA)) 
         {
-          mFieldCache[current] = QVariant (QDateTime (QDate (datetimeBuffer.year, 
-                                                             datetimeBuffer.month, 
-                                                             datetimeBuffer.day), 
-                                                      QTime (datetimeBuffer.hour, 
-                                                             datetimeBuffer.minute, 
-                                                             datetimeBuffer.second)));
+          mFieldCache[current] = QVariant (QDateTime(QDate(datetimeBuffer.year, 
+                                                           datetimeBuffer.month, 
+                                                           datetimeBuffer.day), 
+                                                     QTime(datetimeBuffer.hour, 
+                                                           datetimeBuffer.minute, 
+                                                           datetimeBuffer.second)));
           mNullCache[current]  = false;
         } 
         else 
@@ -316,6 +317,12 @@ QVariant QSAPDBResult::data (int field)
           mFieldCache[current] = QVariant (QDateTime());
           mNullCache[current]  = true;
         }
+        break;
+
+      case QVariant::ByteArray:
+        isNull               = false;
+        mFieldCache[current] = QVariant (qGetBinaryData(mDB->hStmt,current,isNull));
+        mNullCache[current]  = isNull;
         break;
 
       default:

@@ -47,6 +47,7 @@
 #include <sql.h>
 #include <sqlext.h>
 
+#define LONG_SEGMENT_SIZE 8192
 
 //=============================================================================
 // Handles class.
@@ -77,6 +78,7 @@ QVariant::Type qDecodeSAPDBType (const SQLSMALLINT sqltype);
 QSqlFieldInfo  qMakeFieldInfo   (const QSAPDBHandles* db, int i);
 QString        qGetStringData   (SQLHANDLE hStmt, int index, SQLINTEGER& length, 
                                  bool& isNull);
+QByteArray     qGetBinaryData   (SQLHANDLE hStmt, int index, bool& isNull);
 int            qGetIntData      (SQLHANDLE hStmt, int column, bool& isNull);
 QSqlFieldInfo  qMakeFieldInfo   (const QSAPDBHandles* db, const QString& tablename, 
                                  const QString& fieldname);
