@@ -41,7 +41,8 @@ CSecurity::CSecurity (QWidget *parent, const char *name, QSqlDatabase *db,
                       CUserData *current)
 	: QWidget (parent,name)
 {
-  QLabel    *label1, *label2, *label3, *label4, *label5, *label6, *label7, *label8;
+  QLabel    *label1, *label2, *label3, *label4, *label5, *label6, *label7;
+  QLabel    *label8, *label9;
   
   mContentChanged = false;
   mNew            = false;
@@ -57,29 +58,41 @@ CSecurity::CSecurity (QWidget *parent, const char *name, QSqlDatabase *db,
   mGrid->addColSpacing    (1, 50);
   mGrid->addColSpacing    (2, 50);
   mGrid->addColSpacing    (3, 50);
-  mGrid->addRowSpacing    (5, 60);
+  mGrid->addRowSpacing    (1, 50);
+  mGrid->addRowSpacing    (6, 50);
 
   //----------------------------------------------------------------------------
   //  Create the labels.
   //----------------------------------------------------------------------------
-  label1 = new QLabel (tr ("Read"),   this);
-  label2 = new QLabel (tr ("Write"),  this);
-  label3 = new QLabel (tr ("Delete"), this);
-  label4 = new QLabel (tr ("Link"),   this);
-  label5 = new QLabel (tr ("Owner"),  this);
-  label6 = new QLabel (tr ("Friends"),this);
-  label7 = new QLabel (tr ("All"),    this);
-  label8 = new QLabel (tr ("Friends"),this);
+  label1 = new QLabel (tr ("Owner"),  this);
+  label2 = new QLabel (tr ("Read"),   this);
+  label3 = new QLabel (tr ("Write"),  this);
+  label4 = new QLabel (tr ("Delete"), this);
+  label5 = new QLabel (tr ("Link"),   this);
+  label6 = new QLabel (tr ("Owner"),  this);
+  label7 = new QLabel (tr ("Friends"),this);
+  label8 = new QLabel (tr ("All"),    this);
+  label9 = new QLabel (tr ("Friends"),this);
   
-  mGrid->addWidget (label1, 1, 0);
+  mGrid->addWidget (label1, 0, 0);
   mGrid->addWidget (label2, 2, 0);
   mGrid->addWidget (label3, 3, 0);
   mGrid->addWidget (label4, 4, 0);
-  mGrid->addWidget (label5, 0, 1, AlignHCenter);
-  mGrid->addWidget (label6, 0, 2, AlignHCenter);
-  mGrid->addWidget (label7, 0, 3, AlignHCenter);
-  mGrid->addWidget (label8, 6, 0, AlignTop);
+  mGrid->addWidget (label5, 5, 0);
+  mGrid->addWidget (label6, 1, 1, AlignHCenter);
+  mGrid->addWidget (label7, 1, 2, AlignHCenter);
+  mGrid->addWidget (label8, 1, 3, AlignHCenter);
+  mGrid->addWidget (label9, 7, 0, AlignTop);
 
+  //----------------------------------------------------------------------------
+  //  Create the owner combobox.
+  //----------------------------------------------------------------------------
+  mOwner = new QComboBox  (this, "owner");
+  mOwner->setMaximumWidth (80);
+  loadUsers();
+
+  mGrid->addWidget (mOwner, 0, 1, AlignHCenter);
+  
   //----------------------------------------------------------------------------
   //  Create the checkboxes.
   //----------------------------------------------------------------------------
@@ -96,21 +109,21 @@ CSecurity::CSecurity (QWidget *parent, const char *name, QSqlDatabase *db,
   mAllDelete    = new QCheckBox (this, "all delete");
   mAllLink      = new QCheckBox (this, "all link");
 
-  mGrid->addWidget (mOwnerRead,    1, 1, AlignHCenter);
-  mGrid->addWidget (mOwnerWrite,   2, 1, AlignHCenter);
-  mGrid->addWidget (mOwnerDelete,  3, 1, AlignHCenter);
-  mGrid->addWidget (mOwnerLink,    4, 1, AlignHCenter);
-  mGrid->addWidget (mFriendRead,   1, 2, AlignHCenter);
-  mGrid->addWidget (mFriendWrite,  2, 2, AlignHCenter);
-  mGrid->addWidget (mFriendDelete, 3, 2, AlignHCenter);
-  mGrid->addWidget (mFriendLink,   4, 2, AlignHCenter);
-  mGrid->addWidget (mAllRead,      1, 3, AlignHCenter);
-  mGrid->addWidget (mAllWrite,     2, 3, AlignHCenter);
-  mGrid->addWidget (mAllDelete,    3, 3, AlignHCenter);
-  mGrid->addWidget (mAllLink,      4, 3, AlignHCenter);
+  mGrid->addWidget (mOwnerRead,    2, 1, AlignHCenter);
+  mGrid->addWidget (mOwnerWrite,   3, 1, AlignHCenter);
+  mGrid->addWidget (mOwnerDelete,  4, 1, AlignHCenter);
+  mGrid->addWidget (mOwnerLink,    5, 1, AlignHCenter);
+  mGrid->addWidget (mFriendRead,   2, 2, AlignHCenter);
+  mGrid->addWidget (mFriendWrite,  3, 2, AlignHCenter);
+  mGrid->addWidget (mFriendDelete, 4, 2, AlignHCenter);
+  mGrid->addWidget (mFriendLink,   5, 2, AlignHCenter);
+  mGrid->addWidget (mAllRead,      2, 3, AlignHCenter);
+  mGrid->addWidget (mAllWrite,     3, 3, AlignHCenter);
+  mGrid->addWidget (mAllDelete,    4, 3, AlignHCenter);
+  mGrid->addWidget (mAllLink,      5, 3, AlignHCenter);
 
   mPrivate = new QPushButton (tr ("Private"), this);
-  mGrid->addWidget (mPrivate, 2, 4);
+  mGrid->addWidget (mPrivate, 3, 4);
   connect (mPrivate, SIGNAL(clicked()), this, SLOT(slotSetPrivate()));
 
   //----------------------------------------------------------------------------
@@ -127,7 +140,7 @@ CSecurity::CSecurity (QWidget *parent, const char *name, QSqlDatabase *db,
   mFriends->setSorting       	   (0);
   mFriends->header()->close();
 
-  mGrid->addMultiCellWidget (mFriends, 6, 9, 1, 3);
+  mGrid->addMultiCellWidget (mFriends, 7, 10, 1, 3);
 
   mAdd    = new QPushButton (tr ("Add"),    this);
   mRemove = new QPushButton (tr ("Remove"), this);
@@ -135,8 +148,8 @@ CSecurity::CSecurity (QWidget *parent, const char *name, QSqlDatabase *db,
   connect (mAdd,    SIGNAL(clicked()), this, SLOT(slotAddFriend()));
   connect (mRemove, SIGNAL(clicked()), this, SLOT(slotRemoveFriend()));
 
-  mGrid->addWidget (mAdd,    7, 4);
-  mGrid->addWidget (mRemove, 8, 4);
+  mGrid->addWidget (mAdd,    8, 4);
+  mGrid->addWidget (mRemove, 9, 4);
   
   setReadonly (true);
   connectSlots();
@@ -167,7 +180,7 @@ CSecurity::~CSecurity()
 void CSecurity::loadData (QString id, bool readonly)
 {
   QString 		DBnull = "?", filename;
-  QStringList	friends;
+  QStringList	friends, user;
   unsigned int  i;
   
   //----------------------------------------------------------------------------
@@ -179,11 +192,13 @@ void CSecurity::loadData (QString id, bool readonly)
   //----------------------------------------------------------------------------
   // Load the user rights.
   //----------------------------------------------------------------------------
-  QSqlQuery query ("SELECT owner_read, owner_write, owner_delete, owner_link, "
-                   "friend_read, friend_write, friend_delete, friend_link, "
-                   "all_read, all_write, all_delete, all_link, last_modified "
-                   "FROM   contacts_rights "
-                   "WHERE  person_id = " + id);
+  QSqlQuery query ("SELECT A.owner_read, A.owner_write, A.owner_delete, "
+                   "A.owner_link, A.friend_read, A.friend_write, A.friend_delete, "
+                   "A.friend_link, A.all_read, A.all_write, A.all_delete, "
+                   "A.all_link, A.last_modified, B.owner "
+                   "FROM   contacts_rights A, contacts_persons B "
+                   "WHERE  A.person_id = B.person_id "
+                   "AND    A.person_id = " + id);
 
   if (!query.isActive())
   {
@@ -210,6 +225,20 @@ void CSecurity::loadData (QString id, bool readonly)
     mAllWrite->setChecked     ((query.value(9).toBool())  ? true : false);
     mAllDelete->setChecked    ((query.value(10).toBool()) ? true : false);
     mAllLink->setChecked      ((query.value(11).toBool()) ? true : false);
+  }
+
+  //----------------------------------------------------------------------------
+  // Set the owner of the contact.
+  //----------------------------------------------------------------------------
+  for (i = 0; i < mOwner->count(); i++)
+  {
+    user = QStringList::split (" ", mOwner->text(i).simplifyWhiteSpace());
+    
+    if (query.value(13).toString() == user[1])
+    {
+      mOwner->setCurrentItem (i);
+      break;
+    }
   }
 
   //----------------------------------------------------------------------------
@@ -307,7 +336,7 @@ QString CSecurity::saveChanges ()
   QString 	     sql, intro, firstValue, gender, birthday;
   QString 	     ownerRead, ownerWrite, ownerDelete, ownerLink;
   QString 	     friendRead, friendWrite, friendDelete, friendLink;
-  QString 	     allRead, allWrite, allDelete, allLink;
+  QString 	     allRead, allWrite, allDelete, allLink, owner;
   QListViewItem* item;
 
   //----------------------------------------------------------------------------
@@ -392,6 +421,22 @@ QString CSecurity::saveChanges ()
   
   mRemovedList.clear();
   
+  //----------------------------------------------------------------------------
+  // Update the owner if editable.
+  //----------------------------------------------------------------------------
+  if (mOwner->isEnabled())
+  {
+    owner = QStringList::split (" ", mOwner->currentText().simplifyWhiteSpace())[1];
+    query.exec ("UPDATE contacts_persons SET owner = " +  owner + " "
+                "WHERE person_id = " + mCurrent);
+  
+    if (!query.isActive())
+    {
+      SHOW_DB_ERROR(tr ("Error during writing of data"), query.lastQuery());
+      return "";
+    }
+  }
+    
   mContentChanged = false;
 
   return mCurrent;
@@ -500,6 +545,7 @@ void CSecurity::clearControls()
 {
   disconnectSlots();
 
+  mOwner->setCurrentItem    (0);
   mOwnerRead->setChecked    (true);
   mOwnerWrite->setChecked   (true);
   mOwnerDelete->setChecked  (true);
@@ -523,6 +569,12 @@ void CSecurity::clearControls()
 //=============================================================================
 void CSecurity::setReadonly (bool readonly)
 {
+  if (QStringList::split (" ", mOwner->currentText().simplifyWhiteSpace())[1] 
+      == mCurrentUser->id())
+    mOwner->setEnabled (!readonly);
+  else
+    mOwner->setEnabled (false);
+
   mOwnerRead->setEnabled    (!readonly);
   mOwnerWrite->setEnabled   (!readonly);
   mOwnerDelete->setEnabled  (!readonly);
@@ -540,11 +592,32 @@ void CSecurity::setReadonly (bool readonly)
   mRemove->setEnabled       (!readonly);
 }
 
+//==============================================================================
+// Load all defined users into the combobox.
+//==============================================================================
+void CSecurity::loadUsers ()
+{
+  QSqlQuery query ("SELECT name, user_id FROM enixs_users ORDER BY name");
+
+  if (!query.isActive())
+  {
+    SHOW_DB_ERROR(tr ("Error during database query"), query.lastQuery());
+    return;
+  }
+
+  while (query.next())
+    mOwner->insertItem (query.value(0).toString() + 
+                        "                                         " + 
+                        query.value(1).toString());
+}
+
 //=============================================================================
 // Connect the slots to the signals.
 //=============================================================================
 void CSecurity::connectSlots()
 {
+  connect (mOwner,        SIGNAL (activated   	     (const QString &)),
+           this,          SLOT   (slotContentChanged (const QString &)));
   connect (mOwnerRead,    SIGNAL (toggled     	     (bool)),
            this,          SLOT   (slotContentChanged ()));
   connect (mOwnerWrite,   SIGNAL (toggled            (bool)),
@@ -576,6 +649,7 @@ void CSecurity::connectSlots()
 //=============================================================================
 void CSecurity::disconnectSlots()
 {
+  mOwner->disconnect       ();
   mOwnerRead->disconnect   ();
   mOwnerWrite->disconnect  ();
   mOwnerDelete->disconnect ();

@@ -34,6 +34,7 @@
 #include <qlineedit.h>
 #include <qtextedit.h>
 #include <qpushbutton.h>
+#include <qcombobox.h>
 #include <qsqldatabase.h>
 
 //=============================================================================
@@ -70,7 +71,8 @@ protected:
   void    connectSlots    ();
   void    disconnectSlots ();
   void    setReadonly     (bool readonly);
-
+  void    loadUsers       ();
+  
   QPtrList<QListViewItem> selectedFriends ();
   
 protected slots:
@@ -83,6 +85,7 @@ protected slots:
 private:
   QGridLayout*  mGrid;
 
+  QComboBox*    mOwner;
   QCheckBox*    mOwnerRead;
   QCheckBox*    mOwnerWrite;
   QCheckBox*    mOwnerDelete;
