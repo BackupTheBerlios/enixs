@@ -187,11 +187,11 @@ void CPOP::readyRead()
   responseLine.truncate( 3 );
 
   if (state==USER) {
-    *t << "USER svenali@t-online.de\r\n";
+    *t << "USER xxx@xxx.de\r\n";
     std::cout << state << endl;
     state=PASS;
   } else if (state==PASS) {
-    *t << "PASS asusp3bf\r\n";
+    *t << "PASS xxx\r\n";
     state=RETR;
   } else if (state==RETR) {    
     mFileTransfer=true;
