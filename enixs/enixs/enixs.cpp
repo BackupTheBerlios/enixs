@@ -29,6 +29,7 @@
 #include <qaccel.h>
 #include <qtooltip.h>
 #include <qsqldatabase.h>
+#include <qsqldriver.h>
 
 //=============================================================================
 // Application specific includes.
@@ -142,8 +143,6 @@ CEnixsApp::CEnixsApp()
                            QMessageBox::Ok, QMessageBox::NoButton);
     exit(1);
   }
-  
-//      mDB->setIsolationLevel (UnCommitted);
 
   //---------------------------------------------------------------------------
   // Get the user information for the current user.
