@@ -26,6 +26,7 @@
 //=============================================================================
 #include <qpixmap.h>
 #include <qtextcodec.h>
+#include <qsqlcursor.h>
 
 //=============================================================================
 // Application specific includes.
@@ -57,12 +58,13 @@ CGeneral::CGeneral (QWidget *parent, const char *name, QSqlDatabase *db,
   //----------------------------------------------------------------------------
   //  Photo
   //----------------------------------------------------------------------------
-  mPhoto = new QLabel       (tr ("Photo"), this);
+  mPhoto = new CPhoto       (tr ("Photo"), this);
   mPhoto->setAlignment      (AlignCenter);
   mPhoto->setFrameStyle     (QFrame::StyledPanel | QFrame::Sunken);
   mPhoto->setFixedSize      (110, 135);
   mGrid->addMultiCellWidget (mPhoto, 4, 8, 7, 7);
 
+  
   //----------------------------------------------------------------------------
   //  Category
   //----------------------------------------------------------------------------
@@ -224,7 +226,7 @@ void CGeneral::loadData (QString id, bool readonly)
   // Load the selected person.
   //----------------------------------------------------------------------------
   QSqlQuery query ("SELECT name, first_name, name_suffix, title, birthday, male, "
-                   "       company, profession, comment, category, photo_available "
+                   "company, profession, comment, category, photo_available, photo "
                    "FROM   contacts_persons "
                    "WHERE  person_id = " + id);
 
@@ -275,23 +277,7 @@ void CGeneral::loadData (QString id, bool readonly)
   // Load the photo of the selected person.
   //----------------------------------------------------------------------------
   if (query.value(10).toBool())
-  {
-#if 0
-    filename = createTempFilename("png");
-
-    QSqlQuery query ("SELECT photo FROM contacts_persons WHERE person_id = " + id);
-
-    if (mDB->readFile (sql, filename) == false)
-    {
-      SHOW_DB_ERROR(tr ("Error during database query"), query);
-      return;
-    }
-
-    photo.load (filename);
-    photo.resize (110, 135);
-    mPhoto->setPixmap (photo);
-#endif
-  }
+    mPhoto->setPixmap (QPixmap (query.value(11).toByteArray()));
   
   //----------------------------------------------------------------------------
   // Store the ID of the currently loaded person.
@@ -340,7 +326,8 @@ void CGeneral::deleteData (QString id)
 //=============================================================================
 QString CGeneral::saveChanges ()
 {
-  QString 	sql, intro, firstValue, gender, birthday;
+  QString 	   sql, intro, firstValue, gender, birthday;
+  QSqlRecord*  buffer;
 
   //----------------------------------------------------------------------------
   // If nothing was changed, nothing has to be done.
@@ -385,6 +372,36 @@ QString CGeneral::saveChanges ()
     return "";
   }
 
+  //----------------------------------------------------------------------------
+  // Save the photo if it was changed.
+  //----------------------------------------------------------------------------
+  if (mPhoto->hasChanged())
+  {
+    debug ("Foto wird gespeichert");
+    QSqlCursor cursor ("CONTACTS_PERSONS");
+    
+    if (mNew)
+      buffer = cursor.primeInsert();
+    else
+      buffer = cursor.primeUpdate();
+
+    buffer->setValue ("person_id", mCurrent);
+    if (mPhoto->isNull())
+    {
+      debug ("Foto ist NULL");
+      buffer->setValue ("photo_available", QVariant (false, 0));
+      buffer->setValue ("photo",           QVariant ("NULL"));
+    }
+    else
+    {
+      debug ("Foto ist nicht NULL");
+      buffer->setValue ("photo_available", QVariant (true, 0));
+      buffer->setValue ("photo", QVariant (*mPhoto->pixmap()).toByteArray());
+    }
+    if (!cursor.update())
+      debug (cursor.lastError().driverText());
+  }
+  
   mContentChanged = false;
   mNew            = false;
 
@@ -467,6 +484,7 @@ void CGeneral::setReadonly (bool readonly)
 {
   mCategory->setEnabled    (!readonly);
   mName->setReadOnly       (readonly);
+  mPhoto->setReadOnly      (readonly);
   mFirst->setReadOnly      (readonly);
   mSuffix->setReadOnly     (readonly);
   mTitle->setReadOnly      (readonly);
@@ -484,6 +502,8 @@ void CGeneral::connectSlots()
 {
   connect (mCategory,   SIGNAL (activated   	   (const QString &)),
            this,     	SLOT   (slotContentChanged (const QString &)));
+  connect (mPhoto,      SIGNAL (contentChanged     ()),
+           this,        SLOT   (slotContentChanged ()));
   connect (mName,       SIGNAL (textChanged        (const QString &)),
            this,        SLOT   (slotContentChanged (const QString &)));
   connect (mFirst,      SIGNAL (textChanged 	   (const QString &)),

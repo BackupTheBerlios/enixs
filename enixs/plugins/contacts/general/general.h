@@ -40,6 +40,7 @@
 //=============================================================================
 #include "userdata.h"
 #include "textedit.h"
+#include "../widgets/photo.h"
 
 
 class CGeneral : public QWidget
@@ -88,7 +89,7 @@ private:
   QLabel*		mProfessionL;
   QLabel*		mCommentL;
 
-  QLabel*   	mPhoto;
+  CPhoto*   	mPhoto;
   QComboBox*	mCategory;
   QLineEdit*	mName;
   QLineEdit*	mFirst;
