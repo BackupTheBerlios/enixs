@@ -86,7 +86,6 @@ protected:
     
 private:
   bool  endTrans();
-  void  cleanup ();
   
   QSAPDBHandles* mDB;
 };

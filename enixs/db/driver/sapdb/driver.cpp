@@ -43,18 +43,27 @@
 #define SAPDB_CHECK_DRIVER
 
 
+//=============================================================================
+// Constructor of the driver class.
+//=============================================================================
 QSAPDBDriver::QSAPDBDriver (QObject* parent, const char* name)
     : QSqlDriver (parent, name ? name : "QSAPDB7")
 {
   mDB = new QSAPDBHandles();
 }
 
+//=============================================================================
+// Destructor of the driver class.
+//=============================================================================
 QSAPDBDriver::~QSAPDBDriver()
 {
-  cleanup();
+  close();
   delete mDB;
 }
 
+//=============================================================================
+// Check if the driver supports a requested feature.
+//=============================================================================
 bool QSAPDBDriver::hasFeature (DriverFeature f) const
 {
   SQLUSMALLINT txn;
@@ -73,54 +82,80 @@ bool QSAPDBDriver::hasFeature (DriverFeature f) const
       if (ret != SQL_SUCCESS || txn == SQL_TC_NONE)
         return false;
       else
-        return TRUE;
+        return true;
 
     case QuerySize:
-      return TRUE;
+      return true;
       
     case BLOB:
-      return false;
+      return true;
 
     default:
       return false;
   }
 }
 
+//=============================================================================
+// Open a new connection to the database. The isolation level is set to 
+// ReadUncommitted.
+//=============================================================================
 bool QSAPDBDriver::open (const QString & db, const QString & user,
                          const QString & password, const QString & host, int port)
 {
-  SQLRETURN  ret;
-  QString    connectString;
-  SQLCHAR    outString[1024];
-  SWORD      outLen;
+  SQLRETURN    ret;
+  QString      connectString;
+  SQLCHAR      outString[1024];
+  SWORD        outLen;
+  SQLUINTEGER  isolevel = SQL_TXN_READ_UNCOMMITTED;
   
+  //----------------------------------------------------------------------------
+  //  If the database connection is already open --> close it.
+  //----------------------------------------------------------------------------
   if (isOpen())
     close();
 
+  //----------------------------------------------------------------------------
+  //  Allocate an environment handle.
+  //----------------------------------------------------------------------------
   ret = SQLAllocHandle (SQL_HANDLE_ENV, SQL_NULL_HANDLE, &mDB->hEnv);
   if ((ret != SQL_SUCCESS) && (ret != SQL_SUCCESS_WITH_INFO)) 
   {
-#ifdef QT_CHECK_RANGE
-    qSqlWarning( "QSAPDBDriver::open: Unable to allocate environment", mDB);
-#endif
+    qSqlWarning  ("QSAPDBDriver::open: Unable to allocate environment", mDB);
     setOpenError (true);
     return false;
   }
 
+  //----------------------------------------------------------------------------
+  //  Enable ODBC Version 3.
+  //----------------------------------------------------------------------------
   SQLSetEnvAttr (mDB->hEnv, SQL_ATTR_ODBC_VERSION, (SQLPOINTER)SQL_OV_ODBC3, 
                  SQL_IS_UINTEGER);
 
-  ret = SQLAllocHandle (SQL_HANDLE_DBC, mDB->hEnv, &mDB->hDbc);
-
-  if (ret != SQL_SUCCESS) 
+  //----------------------------------------------------------------------------
+  //  Allocate a connection handle.
+  //----------------------------------------------------------------------------
+  if (SQLAllocHandle (SQL_HANDLE_DBC, mDB->hEnv, &mDB->hDbc) != SQL_SUCCESS) 
   {
-#ifdef QT_CHECK_RANGE
-    qSqlWarning( "QSAPDBDriver::open: Unable to allocate connection", mDB);
-#endif
+    qSqlWarning  ("QSAPDBDriver::open: Unable to allocate connection", mDB);
     setOpenError (true);
     return false;
   }
 
+  //----------------------------------------------------------------------------
+  //  Set the isolation level to ReadUncommited.
+  //----------------------------------------------------------------------------
+  if (SQLSetConnectAttr (mDB->hDbc, SQL_ATTR_TXN_ISOLATION, (SQLPOINTER)isolevel, 
+                         sizeof(isolevel)) 
+      != SQL_SUCCESS) 
+  {
+    setLastError (qMakeError ("Unable to set isolation level", 
+                              QSqlError::Transaction, mDB));
+    return false;
+  }
+
+  //----------------------------------------------------------------------------
+  //  Connect to the database.
+  //----------------------------------------------------------------------------
   connectString = "DRIVER=SAP DB 7.3;SERVERDB=" + db + 
                   ";SERVERNODE=" + host + ";UID=" + user + ";PWD=" + password;
 
@@ -135,6 +170,9 @@ bool QSAPDBDriver::open (const QString & db, const QString & user,
     return false;
   }
 
+  //----------------------------------------------------------------------------
+  //  Check the features of the driver.
+  //----------------------------------------------------------------------------
   if (!mDB->checkDriver()) 
   {
 #ifdef QT_CHECK_RANGE
@@ -152,60 +190,65 @@ bool QSAPDBDriver::open (const QString & db, const QString & user,
   return true;
 }
 
+//=============================================================================
+// Close the database connection.
+//=============================================================================
 void QSAPDBDriver::close()
 {
-  cleanup      ();
-  setOpen      (false);
-  setOpenError (false);
-}
-
-void QSAPDBDriver::cleanup()
-{
-  SQLRETURN   ret;
-
   if ((isOpen() || isOpenError()) && (mDB != 0)) 
   {
     if (mDB->hDbc) 
     {
-      // Open statements/descriptors handles are automatically cleaned up by 
-      // SQLDisconnect
-      ret = SQLDisconnect (mDB->hDbc);
-#ifdef QT_CHECK_RANGE
-      if (ret != SQL_SUCCESS)
-        qSqlWarning ("QSAPDBDriver::disconnect: Unable to disconnect datasource",
-                     mDB);
-#endif
-      ret = SQLFreeHandle (SQL_HANDLE_DBC, mDB->hDbc);
-#ifdef QT_CHECK_RANGE
-      if (ret != SQL_SUCCESS)
-        qSqlWarning ("QSAPDBDriver::cleanup: Unable to free connection handle",mDB);
-#endif
+      //------------------------------------------------------------------------
+      //  Disconnect from the database. Open statement handles are released 
+      //  automatically.
+      //------------------------------------------------------------------------
+      if (SQLDisconnect (mDB->hDbc) != SQL_SUCCESS)
+        qSqlWarning ("QSAPDBDriver::close: Unable to disconnect", mDB);
+
+      //------------------------------------------------------------------------
+      //  Release the connection handle.
+      //------------------------------------------------------------------------
+      if (SQLFreeHandle (SQL_HANDLE_DBC, mDB->hDbc) != SQL_SUCCESS)
+        qSqlWarning ("QSAPDBDriver::close: Unable to free connection handle", mDB);
+
       mDB->hDbc = 0;
     }
 
     if (mDB->hEnv) 
     {
-      ret = SQLFreeHandle (SQL_HANDLE_ENV, mDB->hEnv);
-#ifdef QT_CHECK_RANGE
-      if (ret != SQL_SUCCESS)
-        qSqlWarning ("QSAPDBDriver::cleanup: Unable to free environment handle",
-                     mDB);
-#endif
+      //------------------------------------------------------------------------
+      //  Release the environment handle.
+      //------------------------------------------------------------------------
+      if (SQLFreeHandle (SQL_HANDLE_ENV, mDB->hEnv) != SQL_SUCCESS)
+        qSqlWarning("QSAPDBDriver::close: Unable to free environment handle", mDB);
+
       mDB->hEnv = 0;
     }
   }
+
+  setOpen      (false);
+  setOpenError (false);
 }
 
+//=============================================================================
+// Create a new query object.
+//=============================================================================
 QSqlQuery QSAPDBDriver::createQuery() const
 {
   return QSqlQuery (new QSAPDBResult (this, mDB));
 }
 
+//=============================================================================
+// Start a new transaction. This implicitly disables the autocommit mode.
+//=============================================================================
 bool QSAPDBDriver::beginTransaction()
 {
-  SQLUINTEGER  ac = SQL_AUTOCOMMIT_OFF;
-  SQLRETURN    ret;
+  SQLUINTEGER  autocommit = SQL_AUTOCOMMIT_OFF;
 
+  //----------------------------------------------------------------------------
+  //  Check if the database connection is open.
+  //----------------------------------------------------------------------------
   if (!isOpen()) 
   {
 #ifdef QT_CHECK_RANGE
@@ -214,10 +257,12 @@ bool QSAPDBDriver::beginTransaction()
     return false;
   }
 
-  ret = SQLSetConnectAttr (mDB->hDbc, SQL_ATTR_AUTOCOMMIT, (SQLPOINTER)ac, 
-                           sizeof(ac));
-
-  if (ret != SQL_SUCCESS) 
+  //----------------------------------------------------------------------------
+  //  Disable autocommit mode.
+  //----------------------------------------------------------------------------
+  if (SQLSetConnectAttr (mDB->hDbc, SQL_ATTR_AUTOCOMMIT, (SQLPOINTER)autocommit, 
+                         sizeof(autocommit)) 
+      != SQL_SUCCESS) 
   {
     setLastError (qMakeError ("Unable to disable autocommit", 
                               QSqlError::Transaction, mDB));
@@ -226,10 +271,14 @@ bool QSAPDBDriver::beginTransaction()
   return true;
 }
 
+//=============================================================================
+// Commit the current transaction.
+//=============================================================================
 bool QSAPDBDriver::commitTransaction()
 {
-  SQLRETURN    ret;
-
+  //----------------------------------------------------------------------------
+  //  Check if the database connection is open.
+  //----------------------------------------------------------------------------
   if (!isOpen()) 
   {
 #ifdef QT_CHECK_RANGE
@@ -238,22 +287,27 @@ bool QSAPDBDriver::commitTransaction()
     return false;
   }
 
-  ret = SQLEndTran (SQL_HANDLE_ENV, mDB->hEnv, SQL_COMMIT);
-
-  if (ret != SQL_SUCCESS) 
+  //----------------------------------------------------------------------------
+  //  Commit the current transaction.
+  //----------------------------------------------------------------------------
+  if (SQLEndTran (SQL_HANDLE_ENV, mDB->hEnv, SQL_COMMIT) != SQL_SUCCESS) 
   {
     setLastError (qMakeError ("Unable to commit transaction", 
                               QSqlError::Transaction, mDB));
     return false;
   }
 
-  return endTrans();
+  return true;
 }
 
+//=============================================================================
+// Rollback the current transaction.
+//=============================================================================
 bool QSAPDBDriver::rollbackTransaction()
 {
-  SQLRETURN    ret;
-
+  //----------------------------------------------------------------------------
+  //  Check if the database connection is open.
+  //----------------------------------------------------------------------------
   if (!isOpen()) 
   {
 #ifdef QT_CHECK_RANGE
@@ -262,27 +316,29 @@ bool QSAPDBDriver::rollbackTransaction()
     return false;
   }
 
-  ret = SQLEndTran (SQL_HANDLE_ENV, mDB->hEnv, SQL_ROLLBACK);
-
-  if (ret != SQL_SUCCESS) 
+  //----------------------------------------------------------------------------
+  //  Rollback the current transaction.
+  //----------------------------------------------------------------------------
+  if (SQLEndTran (SQL_HANDLE_ENV, mDB->hEnv, SQL_ROLLBACK) != SQL_SUCCESS) 
   {
     setLastError (qMakeError ("Unable to rollback transaction", 
                               QSqlError::Transaction, mDB));
     return false;
   }
 
-  return endTrans();
+  return true;
 }
 
+//=============================================================================
+// Enable the autocommit mode.
+//=============================================================================
 bool QSAPDBDriver::endTrans()
 {
-  SQLUINTEGER ac = SQL_AUTOCOMMIT_ON;
-  SQLRETURN   ret;
+  SQLUINTEGER autocommit = SQL_AUTOCOMMIT_ON;
 
-  ret = SQLSetConnectAttr (mDB->hDbc, SQL_ATTR_AUTOCOMMIT,
-                           (SQLPOINTER)ac, sizeof(ac));
-
-  if (ret != SQL_SUCCESS) 
+  if (SQLSetConnectAttr (mDB->hDbc, SQL_ATTR_AUTOCOMMIT, (SQLPOINTER)autocommit, 
+                         sizeof(autocommit))
+      != SQL_SUCCESS) 
   {
     setLastError (qMakeError ("Unable to enable autocommit", 
                               QSqlError::Transaction, mDB));
@@ -292,99 +348,112 @@ bool QSAPDBDriver::endTrans()
   return true;
 }
 
+//=============================================================================
+// Retrieve all the database tables.
+//=============================================================================
 QStringList QSAPDBDriver::tables (const QString & user) const
 {
   SQLHANDLE    hStmt;
-  SQLRETURN    ret;
   QStringList  tableList;
   SQLINTEGER   length = 0;
   bool         isNull;
   QString      name;
 
+  //----------------------------------------------------------------------------
+  //  Check if the database connection is open.
+  //----------------------------------------------------------------------------
   if (!isOpen())
     return tableList;
 
-  ret = SQLAllocHandle (SQL_HANDLE_STMT, mDB->hDbc, &hStmt);
-
-  if (ret != SQL_SUCCESS) 
+  //----------------------------------------------------------------------------
+  //  Allocate a statement handle.
+  //----------------------------------------------------------------------------
+  if (SQLAllocHandle (SQL_HANDLE_STMT, mDB->hDbc, &hStmt) != SQL_SUCCESS) 
   {
-#ifdef QT_CHECK_RANGE
     qSqlWarning( "QSAPDBDriver::tables: Unable to allocate handle", mDB);
-#endif
     return tableList;
   }
 
-  ret = SQLSetStmtAttr (hStmt, SQL_ATTR_CURSOR_TYPE,
-                        (SQLPOINTER)SQL_CURSOR_FORWARD_ONLY, SQL_IS_UINTEGER);
+  //----------------------------------------------------------------------------
+  //  Set the cursor type to ForwardOnly.
+  //----------------------------------------------------------------------------
+  SQLSetStmtAttr (hStmt, SQL_ATTR_CURSOR_TYPE, (SQLPOINTER)SQL_CURSOR_FORWARD_ONLY,
+                  SQL_IS_UINTEGER);
 
-  // Prevent SQLTables to display all the system tables
-  ret = SQLTables (hStmt, NULL, 0, NULL, 0, NULL, 0, (SQLCHAR *)"TABLE", 5);
-
-#ifdef QT_CHECK_RANGE
-  if (ret != SQL_SUCCESS)
+  //----------------------------------------------------------------------------
+  //  Get the tables.
+  //----------------------------------------------------------------------------
+  if (SQLTables (hStmt, NULL, 0, NULL, 0, NULL, 0, (SQLCHAR *)"TABLE", 5) 
+      != SQL_SUCCESS)
     qSqlWarning ("QSAPDBDriver::tables Unable to execute table list", mDB);
-#endif
-  ret = SQLFetchScroll (hStmt, SQL_FETCH_NEXT, 0);
-  
-  while (ret == SQL_SUCCESS) 
+
+  //----------------------------------------------------------------------------
+  //  Fetch the result.
+  //----------------------------------------------------------------------------
+  while (SQLFetchScroll (hStmt, SQL_FETCH_NEXT, 0) == SQL_SUCCESS) 
   {
     name = qGetStringData (hStmt, 2, length, isNull);
     tableList.append (name);
-
-    ret = SQLFetchScroll (hStmt, SQL_FETCH_NEXT, 0);
   }
 
-  ret = SQLFreeHandle (SQL_HANDLE_STMT, hStmt);
-  if (ret != SQL_SUCCESS)
-    qSqlWarning ("QSAPDBDriver: Unable to free statement handle" + 
-                 QString::number(ret), mDB);
+  //----------------------------------------------------------------------------
+  //  Release the statement handle.
+  //----------------------------------------------------------------------------
+  if (SQLFreeHandle (SQL_HANDLE_STMT, hStmt) != SQL_SUCCESS)
+    qSqlWarning ("QSAPDBDriver: Unable to free statement handle", mDB);
 
   return tableList;
 }
 
+//=============================================================================
+// Retrieve all primary key columns of a given table.
+//=============================================================================
 QSqlIndex QSAPDBDriver::primaryIndex (const QString & tablename) const
 {
   typedef QMap<QString,QString> FieldMap;
   FieldMap     map;
   QSqlIndex    index(tablename);
   SQLHANDLE    hStmt;
-  SQLRETURN    ret;
   SQLINTEGER   length = 0;
   bool         isNull;
   QString      name;
   
+  //----------------------------------------------------------------------------
+  //  Check if the database connection is open.
+  //----------------------------------------------------------------------------
   if (!isOpen())
     return index;
 
-  ret = SQLAllocHandle (SQL_HANDLE_STMT, mDB->hDbc, &hStmt);
-  if (ret != SQL_SUCCESS) 
+  //----------------------------------------------------------------------------
+  //  Allocate a statement handle.
+  //----------------------------------------------------------------------------
+  if (SQLAllocHandle (SQL_HANDLE_STMT, mDB->hDbc, &hStmt) != SQL_SUCCESS) 
   {
-#ifdef QT_CHECK_RANGE
     qSqlWarning ("QSAPDBDriver::primaryIndex: Unable to list primary key", mDB);
-#endif
     return index;
   }
 
+  //----------------------------------------------------------------------------
+  //  Set the cursor type to ForwardOnly.
+  //----------------------------------------------------------------------------
   SQLSetStmtAttr (hStmt, SQL_ATTR_CURSOR_TYPE, (SQLPOINTER)SQL_CURSOR_FORWARD_ONLY, 
                   SQL_IS_UINTEGER);
 
-  ret = SQLPrimaryKeys (hStmt, NULL, 0, NULL, 0, (SQLCHAR*)(const char*)tablename, 
-                        tablename.length());
+  //----------------------------------------------------------------------------
+  //  Get the primary key columns.
+  //----------------------------------------------------------------------------
+  if (SQLPrimaryKeys (hStmt, NULL, 0, NULL, 0, (SQLCHAR*)(const char*)tablename, 
+                      tablename.length()) 
+      != SQL_SUCCESS)
+    qSqlWarning ("QSAPDBDriver::primaryIndex: Unable to get primary key list", mDB);
 
-#ifdef QT_CHECK_RANGE
-  if (ret != SQL_SUCCESS)
-    qSqlWarning ("QSAPDBDriver::primaryIndex: Unable to execute primary key list", 
-                 mDB);
-#endif
-  ret = SQLFetchScroll (hStmt, SQL_FETCH_NEXT, 0);
-  // Store all fields in a StringList because some drivers can't detail fields 
-  // in this FETCH loop
-  while (ret == SQL_SUCCESS) 
+  //----------------------------------------------------------------------------
+  //  Fetch the result.
+  //----------------------------------------------------------------------------
+  while (SQLFetchScroll (hStmt, SQL_FETCH_NEXT, 0) == SQL_SUCCESS) 
   {
     QString name = qGetStringData (hStmt, 3, length, isNull);
     map[name]    = qGetStringData (hStmt, 5, length, isNull);
-
-    ret = SQLFetchScroll (hStmt, SQL_FETCH_NEXT, 0);
   }
 
   FieldMap::Iterator i;
@@ -395,73 +464,89 @@ QSqlIndex QSAPDBDriver::primaryIndex (const QString & tablename) const
     index.setName(i.data());
   }
 
-  ret = SQLFreeHandle (SQL_HANDLE_STMT, hStmt);
-  if (ret != SQL_SUCCESS)
-    qSqlWarning ("QSAPDBDriver: Unable to free statement handle" + 
-                 QString::number(ret), mDB);
+  //----------------------------------------------------------------------------
+  //  Release the statement handle.
+  //----------------------------------------------------------------------------
+  if (SQLFreeHandle (SQL_HANDLE_STMT, hStmt) != SQL_SUCCESS)
+    qSqlWarning ("QSAPDBDriver: Unable to free statement handle", mDB);
+
   return index;
 }
 
+//=============================================================================
+// Retrieve all column names of a given table.
+//=============================================================================
 QSqlRecord QSAPDBDriver::record (const QString & tablename) const
 {
   QSqlRecord  record;
   SQLHANDLE   hStmt;
-  SQLRETURN   ret;
   bool        isNull;
   SQLINTEGER  length = 0;
   QString     name;
   int         type;
   
+  //----------------------------------------------------------------------------
+  //  Check if the database connection is open.
+  //----------------------------------------------------------------------------
   if (!isOpen())
     return record;
 
-  ret = SQLAllocHandle (SQL_HANDLE_STMT, mDB->hDbc, &hStmt);
-  if (ret != SQL_SUCCESS) 
+  //----------------------------------------------------------------------------
+  //  Allocate a statement handle.
+  //----------------------------------------------------------------------------
+  if (SQLAllocHandle (SQL_HANDLE_STMT, mDB->hDbc, &hStmt) != SQL_SUCCESS) 
   {
-#ifdef QT_CHECK_RANGE
     qSqlWarning ("QSAPDBDriver::record: Unable to allocate handle", mDB);
-#endif
     return record;
   }
   
+  //----------------------------------------------------------------------------
+  //  Set the cursor type to ForwardOnly.
+  //----------------------------------------------------------------------------
   SQLSetStmtAttr (hStmt, SQL_ATTR_CURSOR_TYPE, (SQLPOINTER)SQL_CURSOR_FORWARD_ONLY, 
                   SQL_IS_UINTEGER);
   
-  ret = SQLColumns (hStmt, NULL, 0, NULL, 0, (SQLCHAR*)(const char*)tablename,
-                    tablename.length(), NULL, 0);
-
-#ifdef QT_CHECK_RANGE
-  if (ret != SQL_SUCCESS)
+  //----------------------------------------------------------------------------
+  //  Get the column names of the table.
+  //----------------------------------------------------------------------------
+  if (SQLColumns (hStmt, NULL, 0, NULL, 0, (SQLCHAR*)(const char*)tablename,
+                  tablename.length(), NULL, 0) 
+      != SQL_SUCCESS)
     qSqlWarning ("QSAPDBDriver::record: Unable to execute column list", mDB);
-#endif
-  ret = SQLFetchScroll (hStmt, SQL_FETCH_NEXT, 0);
 
-  while (ret == SQL_SUCCESS) 
+  //----------------------------------------------------------------------------
+  //  Fetch the result.
+  //----------------------------------------------------------------------------
+  while (SQLFetchScroll (hStmt, SQL_FETCH_NEXT, 0) == SQL_SUCCESS) 
   {
     name = qGetStringData (hStmt, 3, length, isNull);
     type = qGetIntData    (hStmt, 4, isNull);
 
     record.append (QSqlField (name, qDecodeSAPDBType (type)));
-
-    ret = SQLFetchScroll (hStmt, SQL_FETCH_NEXT, 0);
   }
 
-  ret = SQLFreeHandle (SQL_HANDLE_STMT, hStmt);
-  if (ret != SQL_SUCCESS)
-    qSqlWarning ("QSAPDBDriver: Unable to free statement handle" + 
-                 QString::number(ret), mDB);
+  //----------------------------------------------------------------------------
+  //  Release the statement handle.
+  //----------------------------------------------------------------------------
+  if (SQLFreeHandle (SQL_HANDLE_STMT, hStmt) != SQL_SUCCESS)
+    qSqlWarning ("QSAPDBDriver: Unable to free statement handle", mDB);
 
   return record;
 }
 
+//=============================================================================
+// Retrieve all column names of a given query.
+//=============================================================================
 QSqlRecord QSAPDBDriver::record (const QSqlQuery & query) const
 {
   QSqlRecord    record;
   QSqlField     field;
   QSAPDBResult* result;
-  SQLRETURN     ret;
   SQLSMALLINT   count;
 
+  //----------------------------------------------------------------------------
+  //  Check if the database connection is open.
+  //----------------------------------------------------------------------------
   if (!isOpen())
     return record;
 
@@ -469,12 +554,19 @@ QSqlRecord QSAPDBDriver::record (const QSqlQuery & query) const
   {
     result = (QSAPDBResult*)query.result();
 
-    ret = SQLNumResultCols (result->mDB->hStmt, &count);
-#ifdef QT_CHECK_RANGE
-    if (ret != SQL_SUCCESS)
+    //--------------------------------------------------------------------------
+    //  Get the number of columns in the result of the query.
+    //--------------------------------------------------------------------------
+    if (SQLNumResultCols (result->mDB->hStmt, &count) != SQL_SUCCESS)
+    {
       qSqlWarning ("QSAPDBDriver::record: Unable to count result columns", mDB);
-#endif
-    if (count > 0 && ret == SQL_SUCCESS) 
+      return record;
+    }
+
+    //--------------------------------------------------------------------------
+    //  If there is a result set --> read it.
+    //--------------------------------------------------------------------------
+    if (count > 0) 
     {
       for (int i = 0; i < count; i++) 
       {
@@ -487,12 +579,14 @@ QSqlRecord QSAPDBDriver::record (const QSqlQuery & query) const
   return record;
 }
 
+//=============================================================================
+// Retrieve some meta data of the columns of a given table.
+//=============================================================================
 QSqlRecordInfo QSAPDBDriver::recordInfo (const QString& tablename) const
 {
   QSqlRecordInfo info;
   QStringList    fList;
   SQLHANDLE      hStmt;
-  SQLRETURN      ret;
   bool           isNull;
   SQLINTEGER     length = 0;
   QString        name;
@@ -502,31 +596,39 @@ QSqlRecordInfo QSAPDBDriver::recordInfo (const QString& tablename) const
   int            prec;
   QString        defaultValue;
 
+  //----------------------------------------------------------------------------
+  //  Check if the database connection is open.
+  //----------------------------------------------------------------------------
   if (!isOpen())
     return info;
 
-  ret = SQLAllocHandle (SQL_HANDLE_STMT, mDB->hDbc, &hStmt);
-  if (ret != SQL_SUCCESS) 
+  //----------------------------------------------------------------------------
+  //  Allocate a statement handle.
+  //----------------------------------------------------------------------------
+  if (SQLAllocHandle (SQL_HANDLE_STMT, mDB->hDbc, &hStmt) != SQL_SUCCESS) 
   {
-#ifdef QT_CHECK_RANGE
     qSqlWarning ("QSAPDBDriver::record: Unable to allocate handle", mDB);
-#endif
     return info;
   }
 
+  //----------------------------------------------------------------------------
+  //  Set the cursor type to ForwardOnly.
+  //----------------------------------------------------------------------------
   SQLSetStmtAttr (hStmt, SQL_ATTR_CURSOR_TYPE, (SQLPOINTER)SQL_CURSOR_FORWARD_ONLY, 
                   SQL_IS_UINTEGER);
 
-  ret = SQLColumns (hStmt, NULL, 0, NULL, 0, (SQLCHAR*)(const char*)tablename,
-                    tablename.length(), NULL, 0);
-#ifdef QT_CHECK_RANGE
-  if (ret != SQL_SUCCESS)
+  //----------------------------------------------------------------------------
+  //  Get the column names of the table.
+  //----------------------------------------------------------------------------
+  if (SQLColumns (hStmt, NULL, 0, NULL, 0, (SQLCHAR*)(const char*)tablename,
+                  tablename.length(), NULL, 0) 
+      != SQL_SUCCESS)
     qSqlWarning ("QSAPDBDriver::record: Unable to execute column list", mDB);
-#endif
 
-  ret = SQLFetchScroll (hStmt, SQL_FETCH_NEXT, 0);
-
-  while (ret == SQL_SUCCESS) 
+  //----------------------------------------------------------------------------
+  //  Fetch the result.
+  //----------------------------------------------------------------------------
+  while (SQLFetchScroll (hStmt, SQL_FETCH_NEXT, 0) == SQL_SUCCESS) 
   {
     name     = qGetStringData (hStmt, 3,  length, isNull);
     type     = qGetIntData    (hStmt, 4,  isNull);
@@ -546,38 +648,50 @@ QSqlRecordInfo QSAPDBDriver::recordInfo (const QString& tablename) const
     defaultValue = qGetStringData (hStmt, 12, length, isNull);
     info.append (QSqlFieldInfo (name, qDecodeSAPDBType(type), required, size, prec,
                                 defaultValue, type));
-
-    ret = SQLFetchScroll (hStmt, SQL_FETCH_NEXT, 0);
   }
 
-  ret = SQLFreeHandle (SQL_HANDLE_STMT, hStmt);
-  if (ret != SQL_SUCCESS)
-    qSqlWarning ("QSAPDBDriver: Unable to free statement handle" + 
-                 QString::number(ret), mDB);
+  //----------------------------------------------------------------------------
+  //  Release the statement handle.
+  //----------------------------------------------------------------------------
+  if (SQLFreeHandle (SQL_HANDLE_STMT, hStmt) != SQL_SUCCESS)
+    qSqlWarning ("QSAPDBDriver: Unable to free statement handle", mDB);
 
   return info;
 }
 
+//=============================================================================
+// Retrieve some meta data of the columns of a given query.
+//=============================================================================
 QSqlRecordInfo QSAPDBDriver::recordInfo (const QSqlQuery & query) const
 {
   QSqlRecordInfo info;
   QSAPDBResult*  result;
-  SQLRETURN      ret;
   SQLSMALLINT    count;
   QSqlFieldInfo  field;
   
+  //----------------------------------------------------------------------------
+  //  Check if the database connection is open.
+  //----------------------------------------------------------------------------
   if (!isOpen())
     return info;
 
   if (query.isActive() && query.driver() == this) 
   {
     result = (QSAPDBResult*)query.result();
-    ret    = SQLNumResultCols (result->mDB->hStmt, &count);
-#ifdef QT_CHECK_RANGE
-    if (ret != SQL_SUCCESS)
+
+    //--------------------------------------------------------------------------
+    //  Get the number of columns in the result of the query.
+    //--------------------------------------------------------------------------
+    if (SQLNumResultCols (result->mDB->hStmt, &count) != SQL_SUCCESS)
+    {
       qSqlWarning ("QSAPDBDriver::record: Unable to count result columns", mDB);
-#endif
-    if (count > 0 && ret == SQL_SUCCESS) 
+      return info;
+    }
+
+    //--------------------------------------------------------------------------
+    //  If there is a result set --> read it.
+    //--------------------------------------------------------------------------
+    if (count > 0) 
     {
       for (int i = 0; i < count; i++) 
       {
@@ -590,16 +704,25 @@ QSqlRecordInfo QSAPDBDriver::recordInfo (const QSqlQuery & query) const
   return info;
 }
 
+//=============================================================================
+// Return the environment handle of the database connection.
+//=============================================================================
 SQLHANDLE QSAPDBDriver::environment()
 {
   return mDB->hEnv;
 }
 
+//=============================================================================
+// Return the connection handle of the database connection.
+//=============================================================================
 SQLHANDLE QSAPDBDriver::connection()
 {
   return mDB->hDbc;
 }
 
+//=============================================================================
+// Format the data and time values in a special manner.
+//=============================================================================
 QString QSAPDBDriver::formatValue (const QSqlField* field, bool trimStrings) const
 {
   QString result;

@@ -41,6 +41,9 @@
 #define SAPDB_CHECK_DRIVER
 
 
+//=============================================================================
+// Constructor of the result class.
+//=============================================================================
 QSAPDBResult::QSAPDBResult (const QSAPDBDriver* driver, QSAPDBHandles* db)
     : QSqlResult ((const QSqlDriver *)driver)
 {
@@ -48,93 +51,105 @@ QSAPDBResult::QSAPDBResult (const QSAPDBDriver* driver, QSAPDBHandles* db)
   (*mDB) = (*db);
 }
 
+//=============================================================================
+// Destructor of the result class.
+//=============================================================================
 QSAPDBResult::~QSAPDBResult()
 {
-  SQLRETURN   ret;
-  
   if (mDB->hStmt && driver()->isOpen())
   {
-    ret = SQLFreeHandle (SQL_HANDLE_STMT, mDB->hStmt);
-#ifdef QT_CHECK_RANGE
-    if (ret != SQL_SUCCESS)
-      qSqlWarning ("QSAPDBDriver: Unable to free statement handle" + 
-                   QString::number(ret), mDB);
-#endif
+    if (SQLFreeHandle (SQL_HANDLE_STMT, mDB->hStmt) != SQL_SUCCESS)
+      qSqlWarning ("QSAPDBDriver: Unable to free statement handle", mDB);
   }
 
   delete mDB;
 }
 
+//=============================================================================
+// Reset the result and send the query to the database.
+//=============================================================================
 bool QSAPDBResult::reset (const QString & query)
 {
-  SQLRETURN    ret;
   SQLSMALLINT  count;
 
   setActive (false);
   setAt     (QSql::BeforeFirst);
 
-  // If a statement handle exists - reuse it
+  debug (query);
   if (mDB->hStmt) 
   {
-    ret = SQLFreeStmt (mDB->hStmt, SQL_CLOSE);
-    if (ret != SQL_SUCCESS) 
+    //--------------------------------------------------------------------------
+    //  Close the statement so that it can be reused.
+    //--------------------------------------------------------------------------
+    if (SQLFreeStmt (mDB->hStmt, SQL_CLOSE) != SQL_SUCCESS) 
     {
-#ifdef QT_CHECK_RANGE
       qSqlWarning( "QSAPDBResult::reset: Unable to close statement", mDB);
-#endif
       return false;
     }
   } 
   else 
   {
-    ret = SQLAllocHandle (SQL_HANDLE_STMT, mDB->hDbc, &mDB->hStmt);
-
-    if (ret != SQL_SUCCESS) 
+    //--------------------------------------------------------------------------
+    //  Allocate a statement handle.
+    //--------------------------------------------------------------------------
+    if (SQLAllocHandle (SQL_HANDLE_STMT, mDB->hDbc, &mDB->hStmt) != SQL_SUCCESS) 
     {
-#ifdef QT_CHECK_RANGE
       qSqlWarning ("QSAPDBResult::reset: Unable to allocate statement handle", mDB);
-#endif
       return false;
     }
     
-    ret = SQLSetStmtAttr (mDB->hStmt, SQL_ATTR_CURSOR_TYPE,
-                          (SQLPOINTER)SQL_CURSOR_STATIC, SQL_IS_UINTEGER);
-
-    if (ret != SQL_SUCCESS) 
+    //--------------------------------------------------------------------------
+    //  Set the cursor type to Static.
+    //--------------------------------------------------------------------------
+    if (SQLSetStmtAttr (mDB->hStmt, SQL_ATTR_CURSOR_TYPE,
+                        (SQLPOINTER)SQL_CURSOR_STATIC, SQL_IS_UINTEGER) 
+        != SQL_SUCCESS) 
     {
-#ifdef QT_CHECK_RANGE
       qSqlWarning ("QSAPDBResult::reset: Unable to set statement attribute", mDB);
-#endif
       return false;
     }
   }
   
-  ret = SQLExecDirect (mDB->hStmt, (SQLCHAR*)(const char*)query, SQL_NTS);
-  
-  if (ret != SQL_SUCCESS) 
+  //----------------------------------------------------------------------------
+  //  Execute the statement.
+  //----------------------------------------------------------------------------
+  if (SQLExecDirect (mDB->hStmt, (SQLCHAR*)(const char*)query, SQL_NTS) 
+      != SQL_SUCCESS) 
   {
     setLastError (qMakeError ("Unable to execute statement", 
                               QSqlError::Statement, mDB));
     return false;
   }
 
-  ret = SQLNumResultCols (mDB->hStmt, &count);
+  //----------------------------------------------------------------------------
+  //  Read the number of columns in the result set.
+  //----------------------------------------------------------------------------
+  SQLNumResultCols (mDB->hStmt, &count);
+
   setSelect (count != 0);
   setActive (true);
   return true;
 }
 
+//=============================================================================
+// Fetch one record at a given position.
+//=============================================================================
 bool QSAPDBResult::fetch (int i)
 {
-  SQLRETURN ret;
-  int       index;
+  int   index;
   
+  //----------------------------------------------------------------------------
+  //  If the cursor is already at the given position --> nothing has to be done.
+  //----------------------------------------------------------------------------
   if (i == at())
     return true;
 
   mFieldCache.clear();
   mNullCache.clear();
 
+  //----------------------------------------------------------------------------
+  //  Position the cursor.
+  //----------------------------------------------------------------------------
   index = i + 1;
   if (index <= 0) 
   {
@@ -142,8 +157,10 @@ bool QSAPDBResult::fetch (int i)
     return false;
   }
 
-  ret = SQLFetchScroll (mDB->hStmt, SQL_FETCH_ABSOLUTE, index);
-  if (ret != SQL_SUCCESS)
+  //----------------------------------------------------------------------------
+  //  Fetch the record and set the new cursor position.
+  //----------------------------------------------------------------------------
+  if (SQLFetchScroll (mDB->hStmt, SQL_FETCH_ABSOLUTE, index) != SQL_SUCCESS)
     return false;
 
   setAt (i);
@@ -151,15 +168,15 @@ bool QSAPDBResult::fetch (int i)
   return true;
 }
 
+//=============================================================================
+// Fetch the first record.
+//=============================================================================
 bool QSAPDBResult::fetchFirst()
 {
-  SQLRETURN ret;
-
   mFieldCache.clear();
   mNullCache.clear();
 
-  ret = SQLFetchScroll (mDB->hStmt, SQL_FETCH_FIRST, 0);
-  if (ret != SQL_SUCCESS)
+  if (SQLFetchScroll (mDB->hStmt, SQL_FETCH_FIRST, 0) != SQL_SUCCESS)
     return false;
 
   setAt (0);
@@ -167,20 +184,21 @@ bool QSAPDBResult::fetchFirst()
   return true;
 }
 
+//=============================================================================
+// Fetch the lsst record.
+//=============================================================================
 bool QSAPDBResult::fetchLast()
 {
-  SQLRETURN   ret;
   SQLINTEGER  row;
 
   mFieldCache.clear();
   mNullCache.clear();
 
-  ret = SQLFetchScroll (mDB->hStmt, SQL_FETCH_LAST, 0);
-  if (ret != SQL_SUCCESS) 
+  if (SQLFetchScroll (mDB->hStmt, SQL_FETCH_LAST, 0) != SQL_SUCCESS) 
     return false;
 
-  ret = SQLGetStmtAttr (mDB->hStmt, SQL_ROW_NUMBER, &row, SQL_IS_INTEGER, 0);
-  if (ret != SQL_SUCCESS)
+  if (SQLGetStmtAttr (mDB->hStmt, SQL_ROW_NUMBER, &row, SQL_IS_INTEGER, 0) 
+      != SQL_SUCCESS)
     return false;
 
   setAt (row - 1);
@@ -188,6 +206,9 @@ bool QSAPDBResult::fetchLast()
   return true;
 }
 
+//=============================================================================
+// Return the data of a specified field.
+//=============================================================================
 QVariant QSAPDBResult::data (int field)
 {
   SQLRETURN         ret = 0;
@@ -209,6 +230,9 @@ QVariant QSAPDBResult::data (int field)
   {
     QSqlField info = qMakeField (mDB, current);
 
+    //--------------------------------------------------------------------------
+    //  Distinguish several data types.
+    //--------------------------------------------------------------------------
     switch (info.type()) 
     {
       case QVariant::Int:
@@ -308,6 +332,9 @@ QVariant QSAPDBResult::data (int field)
   return mFieldCache[--current];
 }
 
+//=============================================================================
+// Check if the field at the given position is NULL.
+//=============================================================================
 bool QSAPDBResult::isNull (int field)
 {
   if (!mFieldCache.contains (field)) 
@@ -321,44 +348,41 @@ bool QSAPDBResult::isNull (int field)
   return mNullCache[field];
 }
 
+//=============================================================================
+// Return the size of the result.
+//=============================================================================
 int QSAPDBResult::size()
 {
   int        size = -1;
-  int        at   = 0;
   SQLINTEGER row  = 0;
-  SQLRETURN  ret;
   
-  ret = SQLGetStmtAttr (mDB->hStmt, SQL_ROW_NUMBER, &row, SQL_IS_INTEGER, 0);
-  at  = row;
+  SQLGetStmtAttr (mDB->hStmt, SQL_ROW_NUMBER, &row, SQL_IS_INTEGER, 0);
 
-  ret = SQLFetchScroll (mDB->hStmt, SQL_FETCH_LAST, 0);
-  if (ret == SQL_SUCCESS) 
+  if (SQLFetchScroll (mDB->hStmt, SQL_FETCH_LAST, 0) == SQL_SUCCESS) 
   {
-    ret = SQLGetStmtAttr (mDB->hStmt, SQL_ROW_NUMBER, &row, SQL_IS_INTEGER, 0);
-    if (ret == SQL_SUCCESS)
+    if (SQLGetStmtAttr (mDB->hStmt, SQL_ROW_NUMBER, &row, SQL_IS_INTEGER, 0) 
+        == SQL_SUCCESS)
       size = row;
 
-    ret = SQLFetchScroll (mDB->hStmt, SQL_FETCH_ABSOLUTE, row);
-    if (ret != SQL_SUCCESS)
+    if (SQLFetchScroll (mDB->hStmt, SQL_FETCH_ABSOLUTE, row) != SQL_SUCCESS)
       qSqlWarning("QSAPDBResult::size: Unable to restore position", mDB);
   }
 
   return size;
 }
 
+//=============================================================================
+// Return the number of rows affected by the last query.
+//=============================================================================
 int QSAPDBResult::numRowsAffected()
 {
   SQLINTEGER affectedRowCount = 0;
-  SQLRETURN  ret;
   
-  ret = SQLRowCount (mDB->hStmt, &affectedRowCount);
-  if (ret == SQL_SUCCESS)
+  if (SQLRowCount (mDB->hStmt, &affectedRowCount) == SQL_SUCCESS)
     return affectedRowCount;
-#ifdef QT_CHECK_RANGE
   else
-    qSqlWarning ("QSAPDBResult::numRowsAffected: Unable to count affected rows",
-                 mDB);
-#endif
+    qSqlWarning("QSAPDBResult::numRowsAffected: Unable to count affected rows",mDB);
+
   return -1;
 }
 

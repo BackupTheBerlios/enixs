@@ -37,6 +37,9 @@
 #include "util.h"
 
 
+//=============================================================================
+// Check the features of the dirver.
+//=============================================================================
 bool QSAPDBHandles::checkDriver() const
 {
 #ifdef SAPDB_CHECK_DRIVER
@@ -44,46 +47,49 @@ bool QSAPDBHandles::checkDriver() const
   SQLUSMALLINT  supported;
   int           i;
 
-  // do not query for SQL_API_SQLFETCHSCROLL because it can't be used at this time
+  //----------------------------------------------------------------------------
+  //  These functions are required.
+  //----------------------------------------------------------------------------
   static const SQLUSMALLINT reqFunc[] = { 
     SQL_API_SQLDESCRIBECOL, SQL_API_SQLGETDATA, SQL_API_SQLCOLUMNS, 
     SQL_API_SQLGETSTMTATTR, SQL_API_SQLGETDIAGREC, SQL_API_SQLEXECDIRECT,
     SQL_API_SQLGETINFO, SQL_API_SQLTABLES, 0}; // TODO: SQL_API_SQLPRIMARYKEYS
 
-  // these functions are optional
+  //----------------------------------------------------------------------------
+  //  These functions are optional.
+  //----------------------------------------------------------------------------
   static const SQLUSMALLINT optFunc[] = {
     SQL_API_SQLNUMRESULTCOLS, SQL_API_SQLROWCOUNT, 0};
 
-  // check the required functions
+  //----------------------------------------------------------------------------
+  //  Check for the required functions.
+  //----------------------------------------------------------------------------
   for (i = 0; reqFunc[i] != 0; i++) 
   {
-    ret = SQLGetFunctions (hDbc, reqFunc[i], &supported);
-
-#ifdef QT_CHECK_RANGE
-    if (ret != SQL_SUCCESS) 
+    if (SQLGetFunctions (hDbc, reqFunc[i], &supported) != SQL_SUCCESS) 
     {
       qSqlWarning ("QSAPDBDriver::checkDriver: Cannot get list of supported "
                    "functions", this);
       return false;
     }
-#endif
+
     if (supported == SQL_false) 
       return false;
   }
 
-  // these functions are optional and just generate a warning
+  //----------------------------------------------------------------------------
+  //  Check for the optional functions. If one is missing, only a warning is
+  //  generated.
+  //----------------------------------------------------------------------------
   for (i = 0; optFunc[i] != 0; i++) 
   {
-    ret = SQLGetFunctions (hDbc, optFunc[i], &supported);
-
-#ifdef QT_CHECK_RANGE
-    if (ret != SQL_SUCCESS) 
+    if (SQLGetFunctions (hDbc, optFunc[i], &supported) != SQL_SUCCESS) 
     {
       qSqlWarning ("QSAPDBDriver::checkDriver: Cannot get list of supported "
                    "functions", this);
       return false;
     }
-#endif
+
     if (supported == SQL_false) 
     {
 #ifdef QT_CHECK_RANGE
@@ -99,6 +105,9 @@ bool QSAPDBHandles::checkDriver() const
   return true;
 }
 
+//=============================================================================
+// Generate a warning message for the given handle.
+//=============================================================================
 QString qWarnSAPDBHandle (int handleType, SQLHANDLE handle)
 {
   SQLINTEGER  nativeCode;
@@ -116,6 +125,9 @@ QString qWarnSAPDBHandle (int handleType, SQLHANDLE handle)
   return QString::null;
 }
 
+//=============================================================================
+// Generate a warning message for the given handles object.
+//=============================================================================
 QString qSAPDBWarn (const QSAPDBHandles* db)
 {
   return (qWarnSAPDBHandle (SQL_HANDLE_ENV,  db->hEnv) + " " + 
@@ -123,6 +135,9 @@ QString qSAPDBWarn (const QSAPDBHandles* db)
           qWarnSAPDBHandle (SQL_HANDLE_STMT, db->hStmt));
 }
 
+//=============================================================================
+// Generate a warning message for the given handle object.
+//=============================================================================
 void qSqlWarning (const QString& message, const QSAPDBHandles* db)
 {
 #ifdef QT_CHECK_RANGE
@@ -130,11 +145,17 @@ void qSqlWarning (const QString& message, const QSAPDBHandles* db)
 #endif
 }
 
+//=============================================================================
+// Generate an SQL error object for the given handle object.
+//=============================================================================
 QSqlError qMakeError (const QString& err, int type, const QSAPDBHandles* db)
 {
   return QSqlError ("QSAPDB7: " + err, qSAPDBWarn (db), type);
 }
 
+//=============================================================================
+// Convert the given ODBC datatype to a Qt datatyep.
+//=============================================================================
 QVariant::Type qDecodeSAPDBType (const SQLSMALLINT sqltype)
 {
   QVariant::Type type = QVariant::Invalid;
@@ -155,11 +176,11 @@ QVariant::Type qDecodeSAPDBType (const SQLSMALLINT sqltype)
     case SQL_BIGINT:
       type = QVariant::Int;
       break;
-//     case SQL_BINARY:
-//     case SQL_VARBINARY:
-//     case SQL_LONGVARBINARY:
-//        type = QSqlFieldInfo::Binary;
-//        break;
+    case SQL_BINARY:
+    case SQL_VARBINARY:
+    case SQL_LONGVARBINARY:
+      type = QVariant::ByteArray;
+      break;
     case SQL_DATE:
     case SQL_TYPE_DATE:
       type = QVariant::Date;
@@ -182,6 +203,9 @@ QVariant::Type qDecodeSAPDBType (const SQLSMALLINT sqltype)
   return type;
 }
 
+//=============================================================================
+// Generate a QSqlFieldInfo object for a given field of a result.
+//=============================================================================
 QSqlFieldInfo qMakeFieldInfo (const QSAPDBHandles* db, int i)
 {
   SQLSMALLINT   columnLength;
@@ -189,40 +213,46 @@ QSqlFieldInfo qMakeFieldInfo (const QSAPDBHandles* db, int i)
   SQLUINTEGER   columnSize;
   SQLSMALLINT   columnScale;
   SQLSMALLINT   nullable;
-  SQLRETURN     ret = SQL_ERROR;
-  //QString       qColName;
   SQLCHAR       column[255];
   int           required = -1;
 
-  ret = SQLDescribeCol (db->hStmt, i + 1, column, sizeof(column), &columnLength,
-                        &columnType, &columnSize, &columnScale, &nullable);
-
-  if (ret != SQL_SUCCESS) 
+  //----------------------------------------------------------------------------
+  //  Read the column description.
+  //----------------------------------------------------------------------------
+  if (SQLDescribeCol (db->hStmt, i + 1, column, sizeof(column), &columnLength,
+                      &columnType, &columnSize, &columnScale, &nullable) 
+      != SQL_SUCCESS) 
   {
-#ifdef QT_CHECK_RANGE
     qSqlWarning (QString("qMakeField: Unable to describe column %1").arg(i), db);
-#endif
     return QSqlFieldInfo();
   }
 
-  //qColName = qstrdup((const char*)colName);
-  // nullable can be SQL_NO_NULLS, SQL_NULLABLE or SQL_NULLABLE_UNKNOWN
+  //----------------------------------------------------------------------------
+  //  Nullable can be SQL_NO_NULLS, SQL_NULLABLE or SQL_NULLABLE_UNKNOWN.
+  //----------------------------------------------------------------------------
   if (nullable == SQL_NO_NULLS) 
     required = 1;
-  else if (nullable == SQL_NULLABLE ) 
+  else if (nullable == SQL_NULLABLE) 
     required = 0;
   
+  //----------------------------------------------------------------------------
+  //  Convert the ODBC datatype to a Qt datatype.
+  //----------------------------------------------------------------------------
   QVariant::Type type = qDecodeSAPDBType (columnType);
   
+  //----------------------------------------------------------------------------
+  //  Return the generated field info object.
+  //----------------------------------------------------------------------------
   return QSqlFieldInfo (QString((const char*)column), type, required, 
                         (int)columnSize == 0 ? -1 : (int)columnSize,
                         (int)columnScale == 0 ? -1 : (int)columnScale,
                         QVariant(), (int)columnType);
-  //delete[] qColName;
 }
 
-QString qGetStringData (SQLHANDLE hStmt, int index, SQLINTEGER& length, 
-                        bool& isNull)
+//=============================================================================
+// Read string data from the database at a given index.
+//=============================================================================
+QString qGetStringData (SQLHANDLE hStmt, int index, SQLINTEGER& length,bool& isNull)
 {
   QString       fieldValue;
   SQLSMALLINT   columnLength;
@@ -234,13 +264,13 @@ QString qGetStringData (SQLHANDLE hStmt, int index, SQLINTEGER& length,
   SQLCHAR       column[255];
   SQLCHAR*      buffer;
   
-  ret = SQLDescribeCol (hStmt, index + 1, column, sizeof(column), &columnLength,
-                        &columnType, &columnSize, &columnScale, &nullable);
-
-#ifdef QT_CHECK_RANGE
-  if (ret != SQL_SUCCESS)
+  //----------------------------------------------------------------------------
+  //  Read the column description.
+  //----------------------------------------------------------------------------
+  if (SQLDescribeCol (hStmt, index + 1, column, sizeof(column), &columnLength,
+                      &columnType, &columnSize, &columnScale, &nullable) 
+      != SQL_SUCCESS)
     qWarning (QString("qGetStringData: Unable to describe column %1").arg(index));
-#endif
 
   // SQLDescribeCol may return 0 if size cannot be determined
   if (!columnSize)
@@ -251,6 +281,9 @@ QString qGetStringData (SQLHANDLE hStmt, int index, SQLINTEGER& length,
 
   buffer = new SQLTCHAR[columnSize + 1];
 
+  //----------------------------------------------------------------------------
+  //  Read the string data.
+  //----------------------------------------------------------------------------
   while (true) 
   {
     ret = SQLGetData (hStmt, index + 1, SQL_C_CHAR, (SQLPOINTER)buffer, 
@@ -293,6 +326,9 @@ QString qGetStringData (SQLHANDLE hStmt, int index, SQLINTEGER& length,
   return fieldValue;
 }
 
+//=============================================================================
+// Read integer data from the database at a given index.
+//=============================================================================
 int qGetIntData (SQLHANDLE hStmt, int column, bool& isNull)
 {
   SQLINTEGER   buffer;
@@ -312,6 +348,9 @@ int qGetIntData (SQLHANDLE hStmt, int column, bool& isNull)
   return (int)buffer;
 }
 
+//=============================================================================
+// Generate a QSqlFieldInfo object.
+//=============================================================================
 QSqlFieldInfo qMakeFieldInfo (const QSAPDBHandles* db, const QString& tablename, 
                               const QString& fieldname)
 {
@@ -324,38 +363,44 @@ QSqlFieldInfo qMakeFieldInfo (const QSAPDBHandles* db, const QString& tablename,
   int           size;
   int           prec;
 
-  ret = SQLAllocHandle (SQL_HANDLE_STMT, db->hDbc, &hStmt);
-
-  if (ret != SQL_SUCCESS) 
+  //----------------------------------------------------------------------------
+  //  Allocate a statement handle.
+  //----------------------------------------------------------------------------
+  if (SQLAllocHandle (SQL_HANDLE_STMT, db->hDbc, &hStmt) != SQL_SUCCESS) 
   {
-#ifdef QT_CHECK_RANGE
-    qSqlWarning( "qMakeField: Unable to alloc handle", db);
-#endif
+    qSqlWarning ("qMakeField: Unable to alloc handle", db);
     return info;
   }
 
+  //----------------------------------------------------------------------------
+  //  Set the cursor type to ForwardOnly.
+  //----------------------------------------------------------------------------
   SQLSetStmtAttr (hStmt, SQL_ATTR_CURSOR_TYPE, (SQLPOINTER)SQL_CURSOR_FORWARD_ONLY,
                   SQL_IS_UINTEGER);
 
-  ret = SQLColumns (hStmt, NULL, 0, NULL, 0, (SQLCHAR*)(const char*)tablename,
-                    tablename.length(), (SQLCHAR*)(const char*)fieldname,
-                    fieldname.length());
-
-  if (ret != SQL_SUCCESS) 
+  //----------------------------------------------------------------------------
+  //  Get the columns.
+  //----------------------------------------------------------------------------
+  if (SQLColumns (hStmt, NULL, 0, NULL, 0, (SQLCHAR*)(const char*)tablename,
+                  tablename.length(), (SQLCHAR*)(const char*)fieldname,
+                  fieldname.length()) 
+      != SQL_SUCCESS) 
   {
-#ifdef QT_CHECK_RANGE
     qSqlWarning ("qMakeField: Unable to execute column list", db);
-#endif
     return info;
   }
 
-  ret = SQLFetchScroll (hStmt, SQL_FETCH_NEXT, 0);
-
-  if (ret == SQL_SUCCESS) 
+  //----------------------------------------------------------------------------
+  //  Fetch the result.
+  //----------------------------------------------------------------------------
+  if (SQLFetchScroll (hStmt, SQL_FETCH_NEXT, 0) == SQL_SUCCESS) 
   {
     type     = qGetIntData (hStmt,  4, isNull ); // column type
     required = qGetIntData (hStmt, 10, isNull ); // nullable-flag
-      // required can be SQL_NO_NULLS, SQL_NULLABLE or SQL_NULLABLE_UNKNOWN
+
+    //--------------------------------------------------------------------------
+    //  Required can be SQL_NO_NULLS, SQL_NULLABLE or SQL_NULLABLE_UNKNOWN
+    //--------------------------------------------------------------------------
     if (required == SQL_NO_NULLS)
       required = 1;
     else if (required == SQL_NULLABLE )
@@ -369,15 +414,15 @@ QSqlFieldInfo qMakeFieldInfo (const QSAPDBHandles* db, const QString& tablename,
                           prec, QVariant(), type);
   }
 
-  ret = SQLFreeHandle (SQL_HANDLE_STMT, hStmt);
-#ifdef QT_CHECK_RANGE
-  if (ret != SQL_SUCCESS)
-    qSqlWarning ("QSAPDBDriver: Unable to free statement handle " + 
-                 QString::number(ret), db);
-#endif
+  if (SQLFreeHandle (SQL_HANDLE_STMT, hStmt) != SQL_SUCCESS)
+    qSqlWarning ("QSAPDBDriver: Unable to free statement handle", db);
+
   return info;
 }
 
+//=============================================================================
+// Generate a QSqlField object.
+//=============================================================================
 QSqlField qMakeField (const QSAPDBHandles* db, const QString& tablename, 
                       const QString& fieldname)
 {
@@ -385,6 +430,9 @@ QSqlField qMakeField (const QSAPDBHandles* db, const QString& tablename,
   return QSqlField (info.name(), info.type());
 }
 
+//=============================================================================
+// Generate a QSqlField object.
+//=============================================================================
 QSqlField qMakeField (const QSAPDBHandles* db, int i)
 {
   QSqlFieldInfo info = qMakeFieldInfo (db, i);
