@@ -72,6 +72,7 @@ public:
       
 signals:
   void selectedItem (QString, QString);
+  void closeWindow  ();
   
 protected:  
   void initActions       ();
@@ -99,6 +100,8 @@ private slots:
   void slotContactSave		();
   void slotContactClose		();
   void slotContactPrint		();
+  void slotContactImport	();
+  void slotContactExport	();
 
   void slotEditUndo			();
   void slotEditCut			();
@@ -135,6 +138,8 @@ private:
   QAction* 		  mContactSave;
   QAction* 		  mContactClose;
   QAction* 		  mContactPrint;
+  QAction* 		  mContactImport;
+  QAction* 		  mContactExport;
                   
   QAction* 		  mEditUndo;
   QAction* 		  mEditCut;

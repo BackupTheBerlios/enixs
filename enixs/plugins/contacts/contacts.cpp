@@ -32,6 +32,7 @@
 //=============================================================================
 #include "contacts.h"
 #include "util.h"
+#include "transfer/import.h"
 
 //=============================================================================
 // Bitmaps.
@@ -41,6 +42,8 @@
 #include "bitmaps/contactsave.xpm"
 #include "bitmaps/contactclose.xpm"
 #include "bitmaps/contactprint.xpm"
+#include "bitmaps/contactimport.xpm"
+#include "bitmaps/contactexport.xpm"
 
 #include "bitmaps/editundo.xpm"
 #include "bitmaps/editcut.xpm"
@@ -199,7 +202,7 @@ CContacts::CContacts (QWidget *parent, const char *name, int wflags)
 //=============================================================================
 void CContacts::initActions()
 {
-  QPixmap deleteIcon, saveIcon, newIcon, printIcon, closeIcon;
+  QPixmap deleteIcon, saveIcon, newIcon, printIcon, importIcon,exportIcon,closeIcon;
   QPixmap undoIcon, cutIcon, copyIcon, pasteIcon, findIcon;
   QPixmap alphaIcon, companyIcon, categoryIcon;
   QPixmap contentsIcon, contextIcon, aboutIcon;
@@ -212,6 +215,8 @@ void CContacts::initActions()
   saveIcon 	   = QPixmap (contactsave);
   closeIcon    = QPixmap (contactclose);
   printIcon    = QPixmap (contactprint);
+  importIcon   = QPixmap (contactimport);
+  exportIcon   = QPixmap (contactexport);
 
   undoIcon     = QPixmap (editundo);
   cutIcon 	   = QPixmap (editcut);
@@ -256,6 +261,18 @@ void CContacts::initActions()
   mContactPrint->setWhatsThis (tr("Print Contact\n\nPrints out the current contact"));
   mContactPrint->setEnabled   (false);
   connect (mContactPrint, SIGNAL(activated()), this, SLOT(slotContactPrint()));
+
+  mContactImport = new QAction (tr("Import Contacts"), importIcon, tr("&Import"), 
+                                QAccel::stringToKey (tr("Ctrl+I")), this);
+  mContactImport->setStatusTip (tr("Import one or more contacts"));
+  mContactImport->setWhatsThis (tr("Import Contacts\n\nImport one or more contacts"));
+  connect (mContactImport, SIGNAL(activated()), this, SLOT(slotContactImport()));
+
+  mContactExport = new QAction (tr("Export Contacts"), exportIcon, tr("&Export"), 
+                                QAccel::stringToKey (tr("Ctrl+E")), this);
+  mContactExport->setStatusTip (tr("Export one or more contacts"));
+  mContactExport->setWhatsThis (tr("Export Contacts\n\nExport one or more contacts"));
+  connect (mContactExport, SIGNAL(activated()), this, SLOT(slotContactExport()));
 
   mContactClose = new QAction (tr("Close Contacts"), closeIcon, tr("&Close"), 
                                QAccel::stringToKey (tr("Ctrl+W")), this);
@@ -363,6 +380,9 @@ void CContacts::initMenubar()
   mContactSave->addTo	(mContactMenu);
   mContactPrint->addTo	(mContactMenu);
   mContactMenu->insertSeparator();
+  mContactImport->addTo	(mContactMenu);
+  mContactExport->addTo	(mContactMenu);
+  mContactMenu->insertSeparator();
   mContactClose->addTo	(mContactMenu);
 
   //---------------------------------------------------------------------------
@@ -415,12 +435,15 @@ void CContacts::initMenubar()
 void CContacts::initToolbar()
 {
   mContactToolbar = new QToolBar ("Contact Operations", 0, this);
-  mContactToolbar->setFixedSize  (340, 25);
+  mContactToolbar->setFixedSize  (400, 25);
   
   mContactNew->addTo	   (mContactToolbar);
   mContactDelete->addTo	   (mContactToolbar);
   mContactSave->addTo	   (mContactToolbar);
   mContactPrint->addTo	   (mContactToolbar);
+  mContactToolbar->addSeparator();
+  mContactImport->addTo	   (mContactToolbar);
+  mContactExport->addTo	   (mContactToolbar);
   mContactToolbar->addSeparator();
   mEditUndo->addTo	       (mContactToolbar);
   mEditCut->addTo	       (mContactToolbar);
@@ -932,7 +955,7 @@ void CContacts::slotContactClose()
 {
   mStatusbar->message (tr("Closing Contacts..."));
 
-  debug ("Closing Contacts");
+  emit closeWindow();
   
   mStatusbar->message (tr("Ready."));
 }
@@ -944,6 +967,30 @@ void CContacts::slotContactPrint()
 {
   mStatusbar->message (tr("Printing..."));
 	
+  mStatusbar->message (tr("Ready."));
+}
+
+//=============================================================================
+// SLOT:  Import contacts.
+//=============================================================================
+void CContacts::slotContactImport()
+{
+  mStatusbar->message (tr("Import contacts..."));
+  
+  CImport  dlg (this, "import data");
+  
+  dlg.exec();
+  
+  mStatusbar->message (tr("Ready."));
+}
+
+//=============================================================================
+// SLOT:  Export contacts.
+//=============================================================================
+void CContacts::slotContactExport()
+{
+  mStatusbar->message (tr("Export contacts..."));
+  
   mStatusbar->message (tr("Ready."));
 }
 
