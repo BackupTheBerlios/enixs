@@ -67,7 +67,7 @@ bool CUserData::getUserData (QString user)
   
   if (!query.isActive())
   {
-    SHOW_DB_ERROR(tr ("Fehler bei der Datenbankanfrage"), query.lastQuery());
+    SHOW_DB_ERROR(tr ("Fehler bei der Datenbankanfrage"), query);
     return false;
   }
 
@@ -89,7 +89,7 @@ bool CUserData::getUserData (QString user)
 
   if (!query.isActive())
   {
-    SHOW_DB_ERROR(tr ("Fehler bei der Datenbankanfrage"), query.lastQuery());
+    SHOW_DB_ERROR(tr ("Fehler bei der Datenbankanfrage"), query);
     return false;
   }
 

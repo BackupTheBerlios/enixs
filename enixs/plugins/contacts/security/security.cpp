@@ -202,7 +202,7 @@ void CSecurity::loadData (QString id, bool readonly)
 
   if (!query.isActive())
   {
-    SHOW_DB_ERROR(tr ("Error during database query"), query.lastQuery());
+    SHOW_DB_ERROR(tr ("Error during database query"), query);
     return;
   }
 
@@ -248,7 +248,7 @@ void CSecurity::loadData (QString id, bool readonly)
 
   if (!query.isActive())
   {
-    SHOW_DB_ERROR(tr ("Error during database query"), query.lastQuery());
+    SHOW_DB_ERROR(tr ("Error during database query"), query);
     return;
   }
 
@@ -267,7 +267,7 @@ void CSecurity::loadData (QString id, bool readonly)
 
     if (!query.isActive())
     {
-      SHOW_DB_ERROR(tr ("Error during database query"), query.lastQuery());
+      SHOW_DB_ERROR(tr ("Error during database query"), query);
       return;
     }
 
@@ -305,7 +305,7 @@ void CSecurity::deleteData (QString id)
 
   if (!query.isActive())
   {
-    SHOW_DB_ERROR(tr ("Error during deleting the data"), query.lastQuery());
+    SHOW_DB_ERROR(tr ("Error during deleting the data"), query);
     return;
   }
 
@@ -316,7 +316,7 @@ void CSecurity::deleteData (QString id)
 
   if (!query.isActive())
   {
-    SHOW_DB_ERROR(tr ("Error during deleting the data"), query.lastQuery());
+    SHOW_DB_ERROR(tr ("Error during deleting the data"), query);
     return;
   }
 
@@ -382,7 +382,7 @@ QString CSecurity::saveChanges ()
   
   if (!query.isActive())
   {
-    SHOW_DB_ERROR(tr ("Error during writing of data"), query.lastQuery());
+    SHOW_DB_ERROR(tr ("Error during writing of data"), query);
     return "";
   }
   
@@ -397,7 +397,7 @@ QString CSecurity::saveChanges ()
     
     if (!query.isActive())
     {
-      SHOW_DB_ERROR(tr ("Error during writing of data"), query.lastQuery());
+      SHOW_DB_ERROR(tr ("Error during writing of data"), query);
       return "";
     }
   }
@@ -414,7 +414,7 @@ QString CSecurity::saveChanges ()
   
     if (!query.isActive())
     {
-      SHOW_DB_ERROR(tr ("Error during writing of data"), query.lastQuery());
+      SHOW_DB_ERROR(tr ("Error during writing of data"), query);
       return "";
     }
   }
@@ -432,7 +432,7 @@ QString CSecurity::saveChanges ()
   
     if (!query.isActive())
     {
-      SHOW_DB_ERROR(tr ("Error during writing of data"), query.lastQuery());
+      SHOW_DB_ERROR(tr ("Error during writing of data"), query);
       return "";
     }
   }
@@ -601,7 +601,7 @@ void CSecurity::loadUsers ()
 
   if (!query.isActive())
   {
-    SHOW_DB_ERROR(tr ("Error during database query"), query.lastQuery());
+    SHOW_DB_ERROR(tr ("Error during database query"), query);
     return;
   }
 

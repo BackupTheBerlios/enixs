@@ -125,7 +125,7 @@ void CPrivate::loadData (QString id, bool readonly)
 
   if (!query.isActive())
   {
-    SHOW_DB_ERROR(tr ("Error during database query"), query.lastQuery());
+    SHOW_DB_ERROR(tr ("Error during database query"), query);
     return;
   }
 
@@ -195,7 +195,7 @@ QString CPrivate::saveChanges ()
   
   if (!query.isActive())
   {
-    SHOW_DB_ERROR(tr ("Error during writing of data"), query.lastQuery());
+    SHOW_DB_ERROR(tr ("Error during writing of data"), query);
     return "";
   }
 

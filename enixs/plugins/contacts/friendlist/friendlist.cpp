@@ -92,7 +92,7 @@ CFriendList::CFriendList (QWidget *parent, const char *name, bool singleSelect,
 
   if (query.isActive() == false)
   {
-    SHOW_DB_ERROR(tr ("Error during database query"), query.lastQuery())
+    SHOW_DB_ERROR(tr ("Error during database query"), query)
     return;
   }
 

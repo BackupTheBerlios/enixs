@@ -93,7 +93,7 @@ void CAddress::loadData (QString id, bool readonly)
 
   if (!query.isActive())
   {
-    SHOW_DB_ERROR(tr ("Error during database query"), query.lastQuery());
+    SHOW_DB_ERROR(tr ("Error during database query"), query);
     return;
   }
 
@@ -150,7 +150,7 @@ void CAddress::deleteData (QString id)
 
   if (!query.isActive())
   {
-    SHOW_DB_ERROR(tr ("Error during deleting the data"), query.lastQuery());
+    SHOW_DB_ERROR(tr ("Error during deleting the data"), query);
     return;
   }
 
@@ -214,7 +214,7 @@ QString CAddress::saveChanges ()
     
     if (!query.isActive())
     {
-      SHOW_DB_ERROR(tr ("Error during writing of data"), query.lastQuery());
+      SHOW_DB_ERROR(tr ("Error during writing of data"), query);
       return "";
     }
 
@@ -240,7 +240,7 @@ QString CAddress::getNextID ()
   
   if (!query.isActive())
   {
-    SHOW_DB_ERROR(tr ("Error during database query"), query.lastQuery());
+    SHOW_DB_ERROR(tr ("Error during database query"), query);
     return "";
   }
 
@@ -328,7 +328,7 @@ void CAddress::slotDeleteLine (QString id)
 
     if (!query.isActive())
     {
-      SHOW_DB_ERROR(tr ("Error during deleting the data"), query.lastQuery());
+      SHOW_DB_ERROR(tr ("Error during deleting the data"), query);
       return;
     }
 

@@ -94,7 +94,7 @@ void CCommunication::loadData (QString id, bool readonly)
 
   if (!query.isActive())
   {
-    SHOW_DB_ERROR(tr ("Error during database query"), query.lastQuery());
+    SHOW_DB_ERROR(tr ("Error during database query"), query);
     return;
   }
 
@@ -147,7 +147,7 @@ void CCommunication::deleteData (QString id)
 
   if (!query.isActive())
   {
-    SHOW_DB_ERROR(tr ("Error during deleting the data"), query.lastQuery());
+    SHOW_DB_ERROR(tr ("Error during deleting the data"), query);
     return;
   }
 
@@ -207,7 +207,7 @@ QString CCommunication::saveChanges ()
     
     if (!query.isActive())
     {
-      SHOW_DB_ERROR(tr ("Error during writing of data"), query.lastQuery());
+      SHOW_DB_ERROR(tr ("Error during writing of data"), query);
       return "";
     }
 
@@ -233,7 +233,7 @@ QString CCommunication::getNextID ()
   
   if (!query.isActive())
   {
-    SHOW_DB_ERROR(tr ("Error during database query"), query.lastQuery());
+    SHOW_DB_ERROR(tr ("Error during database query"), query);
     return "";
   }
 
@@ -311,7 +311,7 @@ void CCommunication::slotDeleteLine (QString id)
 
     if (!query.isActive())
     {
-      SHOW_DB_ERROR(tr ("Error during deleting the data"), query.lastQuery());
+      SHOW_DB_ERROR(tr ("Error during deleting the data"), query);
       return;
     }
 

@@ -96,7 +96,7 @@ void CJob::loadData (QString id, bool readonly)
 
   if (!query.isActive())
   {
-    SHOW_DB_ERROR(tr ("Error during database query"), query.lastQuery());
+    SHOW_DB_ERROR(tr ("Error during database query"), query);
     return;
   }
 
@@ -152,7 +152,7 @@ void CJob::deleteData (QString id)
 
   if (!query.isActive())
   {
-    SHOW_DB_ERROR(tr ("Error during deleting the data"), query.lastQuery());
+    SHOW_DB_ERROR(tr ("Error during deleting the data"), query);
     return;
   }
 
@@ -215,7 +215,7 @@ QString CJob::saveChanges ()
     
     if (!query.isActive())
     {
-      SHOW_DB_ERROR(tr ("Error during writing of data"), query.lastQuery());
+      SHOW_DB_ERROR(tr ("Error during writing of data"), query);
       return "";
     }
 
@@ -236,7 +236,7 @@ void CJob::loadJobTypes()
   
   if (!query.isActive())
   {
-    SHOW_DB_ERROR(tr ("Error during database query"), query.lastQuery());
+    SHOW_DB_ERROR(tr ("Error during database query"), query);
     return;
   }
 
@@ -258,7 +258,7 @@ QString CJob::getNextID ()
   
   if (!query.isActive())
   {
-    SHOW_DB_ERROR(tr ("Error during database query"), query.lastQuery());
+    SHOW_DB_ERROR(tr ("Error during database query"), query);
     return "";
   }
 
@@ -347,7 +347,7 @@ void CJob::slotDeleteLine (QString id)
 
     if (!query.isActive())
     {
-      SHOW_DB_ERROR(tr ("Error during deleting the data"), query.lastQuery());
+      SHOW_DB_ERROR(tr ("Error during deleting the data"), query);
       return;
     }
 
