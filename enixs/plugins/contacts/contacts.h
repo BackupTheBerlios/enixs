@@ -76,8 +76,8 @@ protected:
   void initToolbar       ();
   void initStatusbar     ();
   bool updateTree        ();
-  bool checkRights       (QString owner, QString owner_read,
-                          QString friends_read, QString all_read);
+  bool checkRights       (QString id, QString owner, bool owner_read,
+                          bool friends_read, bool all_read);
   QListViewItem *resetBranch (QString branch);
   void setContentChanged (bool flag);
   bool hasContentChanged ();

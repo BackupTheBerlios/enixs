@@ -445,8 +445,9 @@ bool CContacts::updateTree ()
     //--------------------------------------------------------------------------
     // Check the user rights.
     //--------------------------------------------------------------------------
-    if (!checkRights (query.value(5).toString(), query.value(6).toString(), 
-                      query.value(7).toString(), query.value(8).toString()))
+    if (!checkRights (query.value(3).toString(), query.value(5).toString(), 
+                      query.value(6).toBool(), query.value(7).toBool(), 
+                      query.value(8).toBool()))
       continue;
     
     //--------------------------------------------------------------------------
@@ -485,22 +486,68 @@ bool CContacts::updateTree ()
 //=============================================================================
 // Check the user rights.
 //=============================================================================
-bool CContacts::checkRights (QString owner, QString owner_read, 
-                             QString friends_read, QString all_read)
+bool CContacts::checkRights (QString id, QString owner, bool owner_read, 
+                             bool friends_read, bool all_read)
 {
-  if (all_read == "TRUE")
+  //----------------------------------------------------------------------------
+  // Check if all users may read the item.
+  //----------------------------------------------------------------------------
+  if (all_read)
     return true;
   
-  if ((owner == mCurrentUser->id()) && (owner_read == "TRUE"))
+  //----------------------------------------------------------------------------
+  // Check if I'm the owner and the owner may read the item.
+  //----------------------------------------------------------------------------
+  if ((owner == mCurrentUser->id()) && owner_read)
     return true;
 
-  if (friends_read == "TRUE")
+  //----------------------------------------------------------------------------
+  // Check if the friends may read the item and if I'm a friend.
+  //----------------------------------------------------------------------------
+  if (friends_read)
   {
-    
-    return true;
+    QSqlQuery q1 ("SELECT id, type FROM contacts_friends WHERE person_id = " + id);
+  
+    if (!q1.isActive())
+    {
+      SHOW_DB_ERROR(tr ("Error during database query"), q1.lastQuery());
+      return false;
+    }
+  
+    while (q1.next())
+    {
+      if (q1.value(1).toInt() == 0)
+      {
+        //----------------------------------------------------------------------
+        // The friend is a single person.
+        //----------------------------------------------------------------------
+        if (q1.value(0).toString() == mCurrentUser->id())
+          return true;
+      }
+      else
+      {
+        //----------------------------------------------------------------------
+        // The friend is a group.
+        //----------------------------------------------------------------------
+        QSqlQuery q2 ("SELECT user_id FROM enixs_users_in_groups "
+                      "WHERE  group_id = " + q1.value(0).toString());
+  
+        if (!q2.isActive())
+        {
+          SHOW_DB_ERROR(tr ("Error during database query"), q2.lastQuery());
+          return false;
+        }
+  
+        while (q2.next())
+        {
+          if (q2.value(0).toString() == mCurrentUser->id())
+            return true;
+        }
+      }
+    }
   }
   
-  return true;
+  return false;
 }
 
 //=============================================================================
@@ -686,15 +733,11 @@ bool CContacts::lockEntry (QString id)
 
   if (!query.isActive())
   {
-    debug (mDB->lastError().databaseText());
-    debug (QString::number (mDB->lastError().number()));
-    
-    if (mDB->lastError().number() != 400)
+    if (query.lastError().number() != 400)
       SHOW_DB_ERROR(tr ("Error during locking"), query.lastQuery());
+
     return false;
   }
-
-  debug ("Jetzt ist er gelockt");
   
   mUnlockStatement = "UNLOCK ROW contacts_persons KEY person_id = " + id +
                      " IN EXCLUSIVE MODE";
