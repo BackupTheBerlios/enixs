@@ -75,7 +75,7 @@ bool QSAPDBResult::reset (const QString & query)
   setActive (false);
   setAt     (QSql::BeforeFirst);
 
-  debug (query);
+//  debug (query);
   if (mDB->hStmt) 
   {
     //--------------------------------------------------------------------------
