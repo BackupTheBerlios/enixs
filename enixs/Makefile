@@ -1,6 +1,6 @@
 MAKE=make
 RM=rm
-SUBDIRS=libs plugins enixs
+SUBDIRS=db/driver/sapdb libs plugins enixs
 
 all:
 	list='$(SUBDIRS)'; \
