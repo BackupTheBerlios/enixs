@@ -651,12 +651,12 @@ void CEnixsApp::slotSetCaption (QString name, QString title)
 void CEnixsApp::setLanguage ()
 {
   QSqlQuery query ("INSERT INTO enixs_user_config (user_id,description,conf_value) "
-                   "VALUES (" + mCurrentUser->id() + ", 'language', '" + 
+                   "VALUES (" + mCurrentUser->id() + ", 'Language', '" + 
                    mLanguage + "') UPDATE DUPLICATES");
   
   if (!query.isActive())
   {
-    SHOW_DB_ERROR(tr ("Error during writing of data"), query.lastQuery());
+    SHOW_DB_ERROR(tr ("Error during writing of data"), query);
     return;
   }
 
