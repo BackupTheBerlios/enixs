@@ -108,7 +108,7 @@ bool QSAPDBHandles::checkDriver() const
 //=============================================================================
 // Generate a warning message for the given handle.
 //=============================================================================
-QString qWarnSAPDBHandle (int handleType, SQLHANDLE handle)
+void qWarnSAPDBHandle (int handleType, SQLHANDLE handle, QString* text, int* code)
 {
   SQLINTEGER  nativeCode;
   SQLSMALLINT tmp;
@@ -116,23 +116,27 @@ QString qWarnSAPDBHandle (int handleType, SQLHANDLE handle)
   SQLCHAR     state[SQL_SQLSTATE_SIZE+1];
   SQLCHAR     description[SQL_MAX_MESSAGE_LENGTH];
 
-  ret = SQLGetDiagRec (handleType, handle, 1, state, &nativeCode, description,
+  ret = SQLGetDiagRec (handleType, handle, 1, state, (SQLINTEGER *)code,description,
                        SQL_MAX_MESSAGE_LENGTH-1, &tmp);
 
   if ((ret == SQL_SUCCESS) || (ret == SQL_SUCCESS_WITH_INFO))
-    return QString((const char*)description);
-
-  return QString::null;
+    *text = QString((const char*)description);
+  else
+    *text = QString::null;
 }
 
 //=============================================================================
 // Generate a warning message for the given handles object.
 //=============================================================================
-QString qSAPDBWarn (const QSAPDBHandles* db)
+void qSAPDBWarn (const QSAPDBHandles* db, QString* text, int* code)
 {
-  return (qWarnSAPDBHandle (SQL_HANDLE_ENV,  db->hEnv) + " " + 
-          qWarnSAPDBHandle (SQL_HANDLE_DBC,  db->hDbc) + " " + 
-          qWarnSAPDBHandle (SQL_HANDLE_STMT, db->hStmt));
+  QString env, dbc, stmt;
+  
+  qWarnSAPDBHandle (SQL_HANDLE_ENV,  db->hEnv, &env, code);
+  qWarnSAPDBHandle (SQL_HANDLE_DBC,  db->hDbc, &dbc, code);
+  qWarnSAPDBHandle (SQL_HANDLE_STMT, db->hStmt, &stmt, code);
+
+  *text = env + " " + dbc + " " + stmt;
 }
 
 //=============================================================================
@@ -141,7 +145,11 @@ QString qSAPDBWarn (const QSAPDBHandles* db)
 void qSqlWarning (const QString& message, const QSAPDBHandles* db)
 {
 #ifdef QT_CHECK_RANGE
-  qWarning (message + "\tError:" + qSAPDBWarn (db));
+  QString   text;
+  int       code;
+  
+  qSAPDBWarn (db, &text, &code);
+  qWarning (message + "\tError:" + text, code);
 #endif
 }
 
@@ -150,7 +158,11 @@ void qSqlWarning (const QString& message, const QSAPDBHandles* db)
 //=============================================================================
 QSqlError qMakeError (const QString& err, int type, const QSAPDBHandles* db)
 {
-  return QSqlError ("QSAPDB7: " + err, qSAPDBWarn (db), type);
+  QString   text;
+  int       code;
+  
+  qSAPDBWarn (db, &text, &code);
+  return QSqlError ("QSAPDB7: " + err, text, type, code);
 }
 
 //=============================================================================
