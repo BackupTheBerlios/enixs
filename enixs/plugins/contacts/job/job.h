@@ -31,13 +31,13 @@
 #include <qlayout.h>
 #include <qlistview.h>
 #include <qpushbutton.h>
+#include <qsqldatabase.h>
 
 //=============================================================================
 // Application specific includes.
 //=============================================================================
 #include "../widgets/jobbox.h"
 #include "userdata.h"
-#include <dbconnection.h>
 
 
 class CJob : public QWidget
@@ -45,7 +45,7 @@ class CJob : public QWidget
   Q_OBJECT
 
 public: 
-  CJob (QWidget *parent=0, const char *name=0, CConnection *db=0,
+  CJob (QWidget *parent=0, const char *name=0, QSqlDatabase *db=0,
         CUserData *current=0);
   ~CJob();
 
@@ -86,7 +86,7 @@ private:
   QStringList        mIDs;
   QPushButton*       mMore;
   
-  CConnection*  mDB;
+  QSqlDatabase* mDB;
   CUserData*    mCurrentUser;
 
   QString       mCurrent;

@@ -28,7 +28,7 @@
 #include <qlayout.h>
 #include <qlineedit.h>
 #include <qlistview.h>
-#include <dbconnection.h>
+#include <qsqldatabase.h>
 
 
 class CFriendList : public QDialog
@@ -37,7 +37,7 @@ Q_OBJECT
 
 public:
  CFriendList (QWidget *parent = 0, const char *name=0, bool singleSelect=true,
-              CConnection* db=0);
+              QSqlDatabase* db=0);
  ~CFriendList();
  
  QPtrList<QListViewItem>    selection();

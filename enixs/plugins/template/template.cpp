@@ -57,8 +57,7 @@
 //=============================================================================
 // Constructor of the <Template> application class.
 //=============================================================================
-CTemplate::CTemplate (QWidget *parent, const char *name, int wflags, 
-                      CConnection *db, CUserData *current)
+CTemplate::CTemplate (QWidget *parent, const char *name, int wflags)
     : QVBox (parent, name)
 {
   setGeometry (0, 0, 400, 300);
@@ -66,8 +65,9 @@ CTemplate::CTemplate (QWidget *parent, const char *name, int wflags,
   //----------------------------------------------------------------------------
   //  Store the database connection.
   //----------------------------------------------------------------------------
-  mDB          = db;
-  mCurrentUser = current;
+  mDB          = QSqlDatabase::database();
+  mCurrentUser = new CUserData();
+  mCurrentUser->getUserData (mDB->userName());
   
   //---------------------------------------------------------------------------
   // Create the menubar and the toolbar.
@@ -583,7 +583,7 @@ QString CTemplate::summary()
 // Insert the offered objects of the plugin as children into the given
 // QListViewItem so that other plugins can use them for linking.
 //=============================================================================
-void CTemplate::offeredObjects (QListViewItem *item,CConnection *db,CUserData* user)
+void CTemplate::offeredObjects (QListViewItem *item)
 {
 }
 

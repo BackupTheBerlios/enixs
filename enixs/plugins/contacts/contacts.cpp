@@ -60,8 +60,7 @@
 //=============================================================================
 // Constructor of the contacts application class.
 //=============================================================================
-CContacts::CContacts (QWidget *parent, const char *name, int wflags, 
-                      CConnection *db, CUserData *current)
+CContacts::CContacts (QWidget *parent, const char *name, int wflags)
     : QVBox (parent, name)
 {
   QValueList<int>  sizes;
@@ -71,8 +70,9 @@ CContacts::CContacts (QWidget *parent, const char *name, int wflags,
   //----------------------------------------------------------------------------
   //  Store the database connection.
   //----------------------------------------------------------------------------
-  mDB          = db;
-  mCurrentUser = current;
+  mDB          = QSqlDatabase::database();
+  mCurrentUser = new CUserData();
+  mCurrentUser->getUserData (mDB->userName());
   
   //---------------------------------------------------------------------------
   // Create the menubar and the toolbar.
@@ -412,8 +412,7 @@ void CContacts::initStatusbar()
 //=============================================================================
 bool CContacts::updateTree ()
 {
-  QString          sql, label;
-  QStringList      record;
+  QString          label;
   QListViewItem*   item = 0;
   
   //----------------------------------------------------------------------------
@@ -429,43 +428,45 @@ bool CContacts::updateTree ()
   //----------------------------------------------------------------------------
   // Load the items.
   //----------------------------------------------------------------------------
-  sql = "SELECT A.name, A.first_name, A.name_suffix, A.person_id, A.male, A.owner, "
-               "B.owner_read, B.friend_read, B.all_read "
-        "FROM   contacts_persons A, contacts_rights B "
-        "WHERE  A.person_id = B.person_id "
-        "ORDER BY A.name, A.first_name";
+  QSqlQuery query ("SELECT A.name, A.first_name, A.name_suffix, A.person_id, "
+                   "A.male, A.owner, B.owner_read, B.friend_read, B.all_read "
+                   "FROM   contacts_persons A, contacts_rights B "
+                   "WHERE  A.person_id = B.person_id "
+                   "ORDER BY A.name, A.first_name");
   
-  if (mDB->executeSQL (sql) == false)
+  if (!query.isActive())
   {
-    SHOW_DB_ERROR(tr ("Error during database query"), sql)
+    SHOW_DB_ERROR(tr ("Error during database query"), query.lastQuery())
     return false;
   }
   
-  while (mDB->readResult (record))
+  while (query.next())
   {
     //--------------------------------------------------------------------------
     // Check the user rights.
     //--------------------------------------------------------------------------
-    if (!checkRights (record[5], record[6], record[7], record[8]))
+    if (!checkRights (query.value(5).toString(), query.value(6).toString(), 
+                      query.value(7).toString(), query.value(8).toString()))
       continue;
     
     //--------------------------------------------------------------------------
     // Insert a new item into the tree.
     //--------------------------------------------------------------------------
-    if (record[1].isEmpty())
-      label = record[0];
+    if (query.value(1).toString().isEmpty())
+      label = query.value(0).toString();
     else
-      label = record[0] + ", " + record[1];
+      label = query.value(0).toString() + ", " + query.value(1).toString();
     
-    if (!record[2].isEmpty())
-      label += " (" + record[2] + ")";
+    if (!query.value(2).toString().isEmpty())
+      label += " (" + query.value(2).toString() + ")";
     
-    item = new QListViewItem (mRoot, item, label, record[3], "person");
+    item = new QListViewItem (mRoot, item, label, query.value(3).toString(), 
+                              "person");
 
     //--------------------------------------------------------------------------
     // Distinguish between male and female contacts.
     //--------------------------------------------------------------------------
-    if (record[4] == "TRUE")
+    if (query.value(4).toBool())
       item->setPixmap (0, *mManIcon);
     else
       item->setPixmap (0, *mWomanIcon);
@@ -680,20 +681,21 @@ void CContacts::setContentChanged (bool flag)
 //=============================================================================
 bool CContacts::lockEntry (QString id)
 {
-  QString     sql;
-  QStringList record;
+  QSqlQuery query ("LOCK (NOWAIT) ROW contacts_persons KEY person_id = " + id + 
+                   " IN EXCLUSIVE MODE");
 
-  sql = "LOCK (NOWAIT) ROW contacts_persons KEY person_id = " + id + 
-        " IN EXCLUSIVE MODE";
-
-  if (!mDB->executeSQL (sql))
+  if (!query.isActive())
   {
-    if (mDB->lastErrorCode() != 400)
-      SHOW_DB_ERROR(tr ("Error during locking"), sql);
+    debug (mDB->lastError().databaseText());
+    debug (QString::number (mDB->lastError().number()));
+    
+    if (mDB->lastError().number() != 400)
+      SHOW_DB_ERROR(tr ("Error during locking"), query.lastQuery());
     return false;
   }
-  mDB->readResult (record);
 
+  debug ("Jetzt ist er gelockt");
+  
   mUnlockStatement = "UNLOCK ROW contacts_persons KEY person_id = " + id +
                      " IN EXCLUSIVE MODE";
 
@@ -707,7 +709,9 @@ void CContacts::unlockEntry()
 {
   if (!mUnlockStatement.isEmpty())
   {
-    if (!mDB->executeSQL (mUnlockStatement))
+    QSqlQuery query (mUnlockStatement);
+    
+    if (!query.isActive())
     {
       SHOW_DB_ERROR(tr ("Error during unlocking"), mUnlockStatement);
       return;
@@ -1007,7 +1011,7 @@ QString CContacts::summary()
 // Insert the offered objects of the plugin as children into the given
 // QListViewItem so that other plugins can use them for linking.
 //=============================================================================
-void CContacts::offeredObjects (QListViewItem *item,CConnection *db,CUserData* user)
+void CContacts::offeredObjects (QListViewItem *item)
 {
 }
 

@@ -44,7 +44,7 @@
 // Constructor of the class CFriendList.
 //=============================================================================
 CFriendList::CFriendList (QWidget *parent, const char *name, bool singleSelect,
-                          CConnection *mDB)
+                          QSqlDatabase *mDB)
     : QDialog (parent, name, TRUE)
 {
   QLabel          *text;
@@ -88,16 +88,17 @@ CFriendList::CFriendList (QWidget *parent, const char *name, bool singleSelect,
   //----------------------------------------------------------------------------
   // Load the users/groups.
   //----------------------------------------------------------------------------
-  sql = "SELECT name, user_id FROM enixs_users ORDER BY name";
+  QSqlQuery query ("SELECT name, user_id FROM enixs_users ORDER BY name");
 
-  if (mDB->executeSQL (sql) == false)
+  if (query.isActive() == false)
   {
-    SHOW_DB_ERROR(tr ("Error during database query"), sql)
+    SHOW_DB_ERROR(tr ("Error during database query"), query.lastQuery())
     return;
   }
 
-  while (mDB->readResult (record))
-    item = new QListViewItem (mList, item, record[0], "user", record[1]);
+  while (query.next())
+    item = new QListViewItem (mList, item, record[0], "user", 
+                              query.value(1).toString());
 
 }
 

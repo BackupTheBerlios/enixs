@@ -31,13 +31,13 @@
 #include <qlayout.h>
 #include <qlistview.h>
 #include <qpushbutton.h>
+#include <qsqldatabase.h>
 
 //=============================================================================
 // Application specific includes.
 //=============================================================================
 #include "../widgets/addressbox.h"
 #include "userdata.h"
-#include <dbconnection.h>
 
 
 class CAddress : public QWidget
@@ -45,7 +45,7 @@ class CAddress : public QWidget
   Q_OBJECT
 
 public: 
-  CAddress (QWidget *parent=0, const char *name=0, CConnection *db=0,
+  CAddress (QWidget *parent=0, const char *name=0, QSqlDatabase *db=0,
             CUserData *current=0);
   ~CAddress();
 
@@ -84,7 +84,7 @@ private:
   QStringList           mIDs;
   QPushButton*          mMore;
   
-  CConnection*  mDB;
+  QSqlDatabase* mDB;
   CUserData*    mCurrentUser;
 
   QString       mCurrent;

@@ -32,13 +32,13 @@
 #include <qlistview.h>
 #include <qcombobox.h>
 #include <qlineedit.h>
+#include <qsqldatabase.h>
 
 //=============================================================================
 // Application specific includes.
 //=============================================================================
 #include "userdata.h"
 #include "textedit.h"
-#include <dbconnection.h>
 
 
 class CGeneral : public QWidget
@@ -46,7 +46,7 @@ class CGeneral : public QWidget
   Q_OBJECT
 
 public: 
-  CGeneral (QWidget *parent=0, const char *name=0, CConnection *db=0,
+  CGeneral (QWidget *parent=0, const char *name=0, QSqlDatabase *db=0,
             CUserData *current=0);
   ~CGeneral();
 
@@ -100,7 +100,7 @@ private:
   QLineEdit*	mProfession;
   CTextEdit*	mComment;
 
-  CConnection*  mDB;
+  QSqlDatabase* mDB;
   CUserData*    mCurrentUser;
   QString       mCurrent;
   bool			mContentChanged;

@@ -36,7 +36,7 @@
 //=============================================================================
 // Constructor of the class CAddress.
 //=============================================================================
-CAddress::CAddress (QWidget *parent, const char *name, CConnection *db,
+CAddress::CAddress (QWidget *parent, const char *name, QSqlDatabase *db,
                     CUserData *current)
 	: QWidget (parent,name)
 {
@@ -73,8 +73,7 @@ CAddress::~CAddress()
 //=============================================================================
 void CAddress::loadData (QString id, bool readonly)
 {
-  QString 			sql, DBnull = "?", tip;
-  QStringList		record;
+  QString 			DBnull = "?", tip;
   unsigned int      row = 0;
   
   //----------------------------------------------------------------------------
@@ -87,18 +86,18 @@ void CAddress::loadData (QString id, bool readonly)
   //----------------------------------------------------------------------------
   // Load the data.
   //----------------------------------------------------------------------------
-  sql = "SELECT address_id, type, street, zip, city, state, country, "
-               "created, last_modified "
-        "FROM   contacts_addresses "
-		"WHERE  person_id = " + id + " ORDER BY type";
+  QSqlQuery query ("SELECT address_id, type, street, zip, city, state, country, "
+                          "created, last_modified "
+                   "FROM   contacts_addresses "
+                   "WHERE  person_id = " + id + " ORDER BY type");
 
-  if (!mDB->executeSQL (sql))
+  if (!query.isActive())
   {
-    SHOW_DB_ERROR(tr ("Error during database query"), sql);
+    SHOW_DB_ERROR(tr ("Error during database query"), query.lastQuery());
     return;
   }
 
-  while (mDB->readResult (record))
+  while (query.next())
   {
     if (row >= mAddress.count())
     {
@@ -106,18 +105,18 @@ void CAddress::loadData (QString id, bool readonly)
       disconnectSlots();
     }
     
-    mIDs << record[0];
-    mAddress.at(row)->setID      (record[0]);
-    mAddress.at(row)->setType    (record[1].toInt());
-    mAddress.at(row)->setStreet  (record[2]);
-    mAddress.at(row)->setZip     (record[3]);
-    mAddress.at(row)->setCity    (record[4]);
-    mAddress.at(row)->setState   (record[5]);
-    mAddress.at(row)->setCountry (record[6]);
+    mIDs << query.value(0).toString();
+    mAddress.at(row)->setID      (query.value(0).toString());
+    mAddress.at(row)->setType    (query.value(1).toInt());
+    mAddress.at(row)->setStreet  (query.value(2).toString());
+    mAddress.at(row)->setZip     (query.value(3).toString());
+    mAddress.at(row)->setCity    (query.value(4).toString());
+    mAddress.at(row)->setState   (query.value(5).toString());
+    mAddress.at(row)->setCountry (query.value(6).toString());
     mAddress.at(row)->setToolTip (tr ("Created:\t\t\t") + 
-                                  formatDateTime (record[7]) +
+                                  formatDateTime (query.value(7).toString()) +
                                   tr ("\nLast Modified:\t\t") + 
-                                  formatDateTime (record[8]));
+                                  formatDateTime (query.value(8).toString()));
     mAddress.at(row)->setChanged (false);
     
     row++;
@@ -144,20 +143,14 @@ void CAddress::loadData (QString id, bool readonly)
 //=============================================================================
 void CAddress::deleteData (QString id)
 {
-  QString 	  sql, err;
-  QStringList record;
-  
   //----------------------------------------------------------------------------
   // Delete communication data of the person.
   //----------------------------------------------------------------------------
-  sql = "DELETE FROM contacts_addresses WHERE person_id = " + id;
+  QSqlQuery query ("DELETE FROM contacts_addresses WHERE person_id = " + id);
 
-  //----------------------------------------------------------------------------
-  // Execute the SQL statement.
-  //----------------------------------------------------------------------------
-  if (!mDB->executeSQL (sql))
+  if (!query.isActive())
   {
-    SHOW_DB_ERROR(tr ("Error during deleting the data"), sql);
+    SHOW_DB_ERROR(tr ("Error during deleting the data"), query.lastQuery());
     return;
   }
 
@@ -174,7 +167,7 @@ void CAddress::deleteData (QString id)
 //=============================================================================
 QString CAddress::saveChanges ()
 {
-  QString 	      sql, intro, firstValue, where, newid;
+  QString 	      intro, firstValue, where, newid;
   unsigned int    row;
 
   //----------------------------------------------------------------------------
@@ -207,21 +200,21 @@ QString CAddress::saveChanges ()
       where      = "";
     }
     
-    sql = intro + "person_id, type, street, zip, city, state, country, "
-          "last_modified) VALUES (" + firstValue + mCurrent +  ", " + 
-          QString::number (mAddress.at(row)->type()) + ", '" + 
-          mAddress.at(row)->street() + "', '" +
-          mAddress.at(row)->zip() + "', '" + 
-          mAddress.at(row)->city() + "', '" + 
-          mAddress.at(row)->state() + "', '" + 
-          mAddress.at(row)->country() + "', TIMESTAMP) " + where;
-    
     //--------------------------------------------------------------------------
     // Execute the SQL statement.
     //--------------------------------------------------------------------------
-    if (!mDB->executeSQL (sql))
+    QSqlQuery query (intro + "person_id, type, street, zip, city, state, country, "
+                     "last_modified) VALUES (" + firstValue + mCurrent +  ", " + 
+                     QString::number (mAddress.at(row)->type()) + ", '" + 
+                     mAddress.at(row)->street() + "', '" +
+                     mAddress.at(row)->zip() + "', '" + 
+                     mAddress.at(row)->city() + "', '" + 
+                     mAddress.at(row)->state() + "', '" + 
+                     mAddress.at(row)->country() + "', TIMESTAMP) " + where);
+    
+    if (!query.isActive())
     {
-      SHOW_DB_ERROR(tr ("Error during writing of data"), sql);
+      SHOW_DB_ERROR(tr ("Error during writing of data"), query.lastQuery());
       return "";
     }
 
@@ -238,27 +231,25 @@ QString CAddress::saveChanges ()
 //=============================================================================
 QString CAddress::getNextID ()
 {
-  int   	  id;
-  QString     sql;
-  QStringList record;
+  int  id;
 
   //----------------------------------------------------------------------------
   // Read the maximum comm ID.
   //----------------------------------------------------------------------------
-  sql = "SELECT max(address_id) FROM contacts_addresses";
+  QSqlQuery query ("SELECT max(address_id) FROM contacts_addresses");
   
-  if (!mDB->executeSQL (sql))
+  if (!query.isActive())
   {
-    SHOW_DB_ERROR(tr ("Error during database query"), sql);
+    SHOW_DB_ERROR(tr ("Error during database query"), query.lastQuery());
     return "";
   }
 
-  mDB->readResult (record);
+  query.first();
 
   //----------------------------------------------------------------------------
   // Increment the current max ID and return this value.
   //----------------------------------------------------------------------------
-  id = record[0].toInt();
+  id = query.value(0).toInt();
 	
   return QString::number (++id);
 }
@@ -327,19 +318,17 @@ void CAddress::slotAddLine ()
 //=============================================================================
 void CAddress::slotDeleteLine (QString id)
 {
-  QString   sql;
-  
   //----------------------------------------------------------------------------
   // If ID is an empty string, the line was not saved already, so nothing has
   // to bo done.
   //----------------------------------------------------------------------------
   if (id != "")
   {
-    sql = "DELETE FROM contacts_addresses WHERE address_id = " + id;
+    QSqlQuery query ("DELETE FROM contacts_addresses WHERE address_id = " + id);
 
-    if (!mDB->executeSQL (sql))
+    if (!query.isActive())
     {
-      SHOW_DB_ERROR(tr ("Error during deleting the data"), sql);
+      SHOW_DB_ERROR(tr ("Error during deleting the data"), query.lastQuery());
       return;
     }
 

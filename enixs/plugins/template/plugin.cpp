@@ -41,22 +41,11 @@ CEnixsTemplatePlugin::CEnixsTemplatePlugin()
 }
 
 //=============================================================================
-// Set the connection data and load the language.
-//=============================================================================
-void CEnixsTemplatePlugin::setConnection (CConnection *db, CUserData* current)
-{
-  mDB   = db;
-  mUser = current;
-}
-
-//=============================================================================
 // Create the plugin window.
 //=============================================================================
-QWidget* CEnixsTemplatePlugin::create (QWidget* parent, const char* name, 
-                                       int wflags, CConnection *db, 
-                                       CUserData* current)
+QWidget* CEnixsTemplatePlugin::create (QWidget* parent, const char* name,int wflags)
 {
-  return new CTemplate (parent, name, wflags, db, current);
+  return new CTemplate (parent, name, wflags);
 }
 
 //=============================================================================
@@ -64,7 +53,7 @@ QWidget* CEnixsTemplatePlugin::create (QWidget* parent, const char* name,
 //=============================================================================
 void CEnixsTemplatePlugin::offeredObjects (QListViewItem* item)
 {
-  CTemplate::offeredObjects (item, mDB, mUser);
+  CTemplate::offeredObjects (item);
 }
 
 //=============================================================================

@@ -37,7 +37,7 @@
 //=============================================================================
 // Constructor of the class CGeneral.
 //=============================================================================
-CGeneral::CGeneral (QWidget *parent, const char *name, CConnection *db,
+CGeneral::CGeneral (QWidget *parent, const char *name, QSqlDatabase *db,
                     CUserData *current)
 	: QWidget (parent,name)
 {
@@ -207,8 +207,7 @@ CGeneral::~CGeneral()
 //=============================================================================
 void CGeneral::loadData (QString id, bool readonly)
 {
-  QString 			sql, DBnull = "?", filename;
-  QStringList		record;
+  QString 			DBnull = "?", filename;
   QPixmap           photo;
   
   //----------------------------------------------------------------------------
@@ -220,69 +219,71 @@ void CGeneral::loadData (QString id, bool readonly)
   //----------------------------------------------------------------------------
   // Load the selected person.
   //----------------------------------------------------------------------------
-  sql = "SELECT name, first_name, name_suffix, title, birthday, male, "
-        "       company, profession, comment, photo_available "
-		"FROM   contacts_persons "
-		"WHERE  person_id = " + id;
+  QSqlQuery query ("SELECT name, first_name, name_suffix, title, birthday, male, "
+                   "       company, profession, comment, photo_available "
+                   "FROM   contacts_persons "
+                   "WHERE  person_id = " + id);
 
-  if (!mDB->executeSQL (sql))
+  if (!query.isActive())
   {
-    SHOW_DB_ERROR(tr ("Error during database query"), sql);
+    SHOW_DB_ERROR(tr ("Error during database query"), query.lastQuery());
     return;
   }
 
-  mDB->readResult (record);
+  query.first();
 
   //----------------------------------------------------------------------------
   // Set the text of the single and multi line edit controls and the labels.
   //----------------------------------------------------------------------------
-  if (record[0] != DBnull)
-    mName->setText (record[0]);
+  if (query.value(0).toString() != DBnull)
+    mName->setText (query.value(0).toString());
 
-  if (record[1] != DBnull)
-    mFirst->setText (record[1]);
+  if (query.value(1).toString() != DBnull)
+    mFirst->setText (query.value(1).toString());
   
-  if (record[2] != DBnull)
-    mSuffix->setText (record[2]);
+  if (query.value(2).toString() != DBnull)
+    mSuffix->setText (query.value(2).toString());
   
-  if (record[3] != DBnull)
-    mTitle->setText (record[3]);
+  if (query.value(3).toString() != DBnull)
+    mTitle->setText (query.value(3).toString());
   
-  if (record[4] != DBnull)
-    mBirthday->setText (formatDate (record[4]));
+  if (query.value(4).toString() != DBnull)
+    mBirthday->setText (formatDate (query.value(4).toString()));
   
-  if (record[5] == "TRUE")
+  if (query.value(5).toBool())
     mGender->setCurrentItem (0);
   else
     mGender->setCurrentItem (1);
   
-  if (record[6] != DBnull)
-    mCompany->setText (record[6]);
+  if (query.value(6).toString() != DBnull)
+    mCompany->setText (query.value(6).toString());
   
-  if (record[7] != DBnull)
-    mProfession->setText (record[7]);
+  if (query.value(7).toString() != DBnull)
+    mProfession->setText (query.value(7).toString());
   
-  if (record[8] != DBnull)
-    mComment->setText (record[8]);
+  if (query.value(8).toString() != DBnull)
+    mComment->setText (query.value(8).toString());
 
   //----------------------------------------------------------------------------
   // Load the photo of the selected person.
   //----------------------------------------------------------------------------
-  if (record[9] == "TRUE")
+  if (query.value(9).toBool())
   {
+#if 0
     filename = createTempFilename("png");
 
-    sql = "SELECT photo FROM contacts_persons WHERE person_id = " + id;
+    QSqlQuery query ("SELECT photo FROM contacts_persons WHERE person_id = " + id);
 
     if (mDB->readFile (sql, filename) == false)
     {
-      SHOW_DB_ERROR(tr ("Error during database query"), sql);
+      SHOW_DB_ERROR(tr ("Error during database query"), query.lastQuery());
       return;
     }
 
     photo.load (filename);
     photo.resize (110, 135);
     mPhoto->setPixmap (photo);
+#endif
   }
   
   //----------------------------------------------------------------------------
@@ -305,20 +306,17 @@ void CGeneral::loadData (QString id, bool readonly)
 //=============================================================================
 void CGeneral::deleteData (QString id)
 {
-  QString 	  sql, err;
-  QStringList record;
-  
   //----------------------------------------------------------------------------
   // Delete the person.
   //----------------------------------------------------------------------------
-  sql = "DELETE FROM contacts_persons WHERE person_id = " + id;
+  QSqlQuery query ("DELETE FROM contacts_persons WHERE person_id = " + id);
 
   //----------------------------------------------------------------------------
   // Execute the SQL statement.
   //----------------------------------------------------------------------------
-  if (!mDB->executeSQL (sql))
+  if (!query.isActive())
   {
-    SHOW_DB_ERROR(tr ("Error during deleting the data"), sql);
+    SHOW_DB_ERROR(tr ("Error during deleting the data"), query.lastQuery());
     return;
   }
 
@@ -352,7 +350,8 @@ QString CGeneral::saveChanges ()
   intro      = mNew ? "INSERT contacts_persons (person_id, " : "UPDATE contacts_persons (";
   firstValue = mNew ? mCurrent + QString (", ") : QString ("");
   gender     = (mGender->currentItem() == 0) ? QString("TRUE") : QString("FALSE");
-  birthday   = mBirthday->text().isEmpty() ? QString("NULL") : "'" + dateToDB (mBirthday->text()) + "'";
+  birthday   = mBirthday->text().isEmpty() 
+                     ? QString("NULL") : "'" + dateToDB (mBirthday->text()) + "'";
 
   sql = intro + "name, first_name, name_suffix, title, birthday, male, company, "
                 "profession, comment, last_modified) "
@@ -371,9 +370,11 @@ QString CGeneral::saveChanges ()
   //----------------------------------------------------------------------------
   // Execute the SQL statement.
   //----------------------------------------------------------------------------
-  if (!mDB->executeSQL (sql))
+  QSqlQuery query (sql);
+  
+  if (!query.isActive())
   {
-    SHOW_DB_ERROR(tr ("Error during writing of data"), sql);
+    SHOW_DB_ERROR(tr ("Error during writing of data"), query.lastQuery());
     return "";
   }
 
@@ -388,27 +389,25 @@ QString CGeneral::saveChanges ()
 //=============================================================================
 QString CGeneral::getNextID ()
 {
-  int   	  id;
-  QString     sql;
-  QStringList record;
+  int   id;
 
   //----------------------------------------------------------------------------
   // Read the maximum person ID.
   //----------------------------------------------------------------------------
-  sql = "SELECT max(person_id) FROM contacts_persons";
+  QSqlQuery query ("SELECT max(person_id) FROM contacts_persons");
   
-  if (!mDB->executeSQL (sql))
+  if (!query.isActive())
   {
-    SHOW_DB_ERROR(tr ("Error during database query"), sql);
+    SHOW_DB_ERROR(tr ("Error during database query"), query.lastQuery());
     return "";
   }
 
-  mDB->readResult (record);
+  query.first();
 
   //----------------------------------------------------------------------------
   // Increment the current max ID and return this value.
   //----------------------------------------------------------------------------
-  id = record[0].toInt();
+  id = query.value(0).toInt();
 	
   return QString::number (++id);
 }
@@ -418,23 +417,21 @@ QString CGeneral::getNextID ()
 //=============================================================================
 void CGeneral::loadCategories ()
 {
-  QString     sql;
-  QStringList record;
-
   //----------------------------------------------------------------------------
   // Read the maximum person ID.
   //----------------------------------------------------------------------------
-  sql = "SELECT name FROM enixs_categories WHERE language = 'de' ORDER BY name";
-  debug(sql);
+  QSqlQuery query ("SELECT name FROM enixs_categories WHERE language = 'de' "
+                   "ORDER BY name");
+  debug ("Hier muss noch was angepasst werden");
   
-  if (!mDB->executeSQL (sql))
+  if (!query.isActive())
   {
-    SHOW_DB_ERROR(tr ("Error during database query"), sql);
+    SHOW_DB_ERROR(tr ("Error during database query"), query.lastQuery());
     return;
   }
 
-  while (mDB->readResult (record))
-    mCategory->insertItem (record[0]);
+  while (query.next())
+    mCategory->insertItem (query.value(0).toString());
 }
 
 //=============================================================================

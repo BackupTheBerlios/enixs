@@ -35,12 +35,12 @@
 #include <qstatusbar.h>
 #include <qlistview.h>
 #include <qlabel.h>
+#include <qsqldatabase.h>
 
 //=============================================================================
 // Application specific includes.
 //=============================================================================
 #include "userdata.h"
-#include <dbconnection.h>
 
 
 #define VERSION "0.1"
@@ -51,8 +51,7 @@ class CTemplate : public QVBox
   Q_OBJECT    
 
 public:
-  CTemplate (QWidget *parent=0, const char *name=0, int wflags=0,
-             CConnection *dbc=0, CUserData* current=0);
+  CTemplate (QWidget *parent=0, const char *name=0, int wflags=0);
 
   static QString name();
   static QString group();
@@ -60,8 +59,7 @@ public:
   static QString toolTip();
   static QString whatsThis();
   static QString summary();
-  static void    offeredObjects (QListViewItem* item, CConnection* db,
-                                 CUserData* user);
+  static void    offeredObjects (QListViewItem* item);
   
 protected:  
   void initActions       ();
@@ -98,7 +96,7 @@ private slots:
   void slotStatusHelpMsg	(const QString &text);
  
 private:
-  CConnection*    mDB;
+  QSqlDatabase*   mDB;
   CUserData*      mCurrentUser;
 
   QMenuBar*       mMenubar;

@@ -41,22 +41,11 @@ CEnixsEmailPlugin::CEnixsEmailPlugin()
 }
 
 //=============================================================================
-// Set the connection data and load the language.
-//=============================================================================
-void CEnixsEmailPlugin::setConnection (CConnection *db, CUserData* current)
-{
-  mDB   = db;
-  mUser = current;
-}
-
-//=============================================================================
 // Create the plugin window.
 //=============================================================================
-QWidget* CEnixsEmailPlugin::create (QWidget* parent, const char* name, 
-                                       int wflags, CConnection *db, 
-                                       CUserData* current)
+QWidget* CEnixsEmailPlugin::create (QWidget* parent, const char* name, int wflags)
 {
-  return new CEmail (parent, name, wflags, db, current);
+  return new CEmail (parent, name, wflags);
 }
 
 //=============================================================================
@@ -64,7 +53,7 @@ QWidget* CEnixsEmailPlugin::create (QWidget* parent, const char* name,
 //=============================================================================
 void CEnixsEmailPlugin::offeredObjects (QListViewItem* item)
 {
-  CEmail::offeredObjects (item, mDB, mUser);
+  CEmail::offeredObjects (item);
 }
 
 //=============================================================================

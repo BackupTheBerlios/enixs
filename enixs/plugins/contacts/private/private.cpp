@@ -36,7 +36,7 @@
 //=============================================================================
 // Constructor of the class CPrivate.
 //=============================================================================
-CPrivate::CPrivate (QWidget *parent, const char *name, CConnection *db,
+CPrivate::CPrivate (QWidget *parent, const char *name, QSqlDatabase *db,
                     CUserData *current)
 	: QWidget (parent,name)
 {
@@ -108,8 +108,7 @@ CPrivate::~CPrivate()
 //=============================================================================
 void CPrivate::loadData (QString id, bool readonly)
 {
-  QString 			sql, DBnull = "?", filename;
-  QStringList		record;
+  QString 	DBnull = "?", filename;
   
   //----------------------------------------------------------------------------
   // Disconnect the slots during data load.
@@ -120,32 +119,32 @@ void CPrivate::loadData (QString id, bool readonly)
   //----------------------------------------------------------------------------
   // Load the selected person.
   //----------------------------------------------------------------------------
-  sql = "SELECT spouse, children, nickname, hobbies "
-		"FROM   contacts_persons "
-		"WHERE  person_id = " + id;
+  QSqlQuery query ("SELECT spouse, children, nickname, hobbies "
+                   "FROM   contacts_persons "
+                   "WHERE  person_id = " + id);
 
-  if (!mDB->executeSQL (sql))
+  if (!query.isActive())
   {
-    SHOW_DB_ERROR(tr ("Error during database query"), sql);
+    SHOW_DB_ERROR(tr ("Error during database query"), query.lastQuery());
     return;
   }
 
-  mDB->readResult (record);
+  query.first();
 
   //----------------------------------------------------------------------------
   // Set the text of the line edit controls.
   //----------------------------------------------------------------------------
-  if (record[0] != DBnull)
-    mSpouse->setText (record[0]);
+  if (query.value(0).toString() != DBnull)
+    mSpouse->setText (query.value(0).toString());
 
-  if (record[1] != DBnull)
-    mChildren->setText (record[1]);
+  if (query.value(1).toString() != DBnull)
+    mChildren->setText (query.value(1).toString());
   
-  if (record[2] != DBnull)
-    mNickname->setText (record[2]);
+  if (query.value(2).toString() != DBnull)
+    mNickname->setText (query.value(2).toString());
   
-  if (record[3] != DBnull)
-    mHobbies->setText (record[3]);
+  if (query.value(3).toString() != DBnull)
+    mHobbies->setText (query.value(3).toString());
   
   //----------------------------------------------------------------------------
   // Store the ID of the currently loaded person.
@@ -176,7 +175,7 @@ void CPrivate::deleteData (QString id)
 //=============================================================================
 QString CPrivate::saveChanges ()
 {
-  QString 	sql, intro, firstValue, gender, birthday;
+  QString 	intro, firstValue, gender, birthday;
 
   //----------------------------------------------------------------------------
   // If nothing was changed, nothing has to be done.
@@ -185,21 +184,18 @@ QString CPrivate::saveChanges ()
     return mCurrent;
   
   //----------------------------------------------------------------------------
-  // Build the SQL statement.
-  //----------------------------------------------------------------------------
-  sql = "UPDATE contacts_persons (spouse,children,nickname,hobbies,last_modified) "
-		"VALUES ('"  + textToDB (mSpouse->text()) + "', "
-                 "'" + textToDB (mChildren->text()) + "', "
-                 "'" + textToDB (mNickname->text()) + "', "
-                 "'" + textToDB (mHobbies->text()) + "', TIMESTAMP) "
-        "WHERE person_id = " + mCurrent;
-  
-  //----------------------------------------------------------------------------
   // Execute the SQL statement.
   //----------------------------------------------------------------------------
-  if (!mDB->executeSQL (sql))
+  QSqlQuery query ("UPDATE contacts_persons (spouse, children, nickname, hobbies, "
+                   "last_modified) VALUES ('"  + textToDB (mSpouse->text()) + "', "
+                   "'" + textToDB (mChildren->text()) + "', "
+                   "'" + textToDB (mNickname->text()) + "', "
+                   "'" + textToDB (mHobbies->text()) + "', TIMESTAMP) "
+                   "WHERE person_id = " + mCurrent);
+  
+  if (!query.isActive())
   {
-    SHOW_DB_ERROR(tr ("Error during writing of data"), sql);
+    SHOW_DB_ERROR(tr ("Error during writing of data"), query.lastQuery());
     return "";
   }
 

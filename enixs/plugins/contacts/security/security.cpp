@@ -37,7 +37,7 @@
 //=============================================================================
 // Constructor of the class CSecurity.
 //=============================================================================
-CSecurity::CSecurity (QWidget *parent, const char *name, CConnection *db,
+CSecurity::CSecurity (QWidget *parent, const char *name, QSqlDatabase *db,
                       CUserData *current)
 	: QWidget (parent,name)
 {
@@ -166,8 +166,8 @@ CSecurity::~CSecurity()
 //=============================================================================
 void CSecurity::loadData (QString id, bool readonly)
 {
-  QString 		sql, DBnull = "?", filename;
-  QStringList	record, friends;
+  QString 		DBnull = "?", filename;
+  QStringList	friends;
   unsigned int  i;
   
   //----------------------------------------------------------------------------
@@ -179,52 +179,52 @@ void CSecurity::loadData (QString id, bool readonly)
   //----------------------------------------------------------------------------
   // Load the user rights.
   //----------------------------------------------------------------------------
-  sql = "SELECT owner_read, owner_write, owner_delete, owner_link, "
-               "friend_read, friend_write, friend_delete, friend_link, "
-               "all_read, all_write, all_delete, all_link, last_modified "
-		"FROM   contacts_rights "
-		"WHERE  person_id = " + id;
+  QSqlQuery query ("SELECT owner_read, owner_write, owner_delete, owner_link, "
+                   "friend_read, friend_write, friend_delete, friend_link, "
+                   "all_read, all_write, all_delete, all_link, last_modified "
+                   "FROM   contacts_rights "
+                   "WHERE  person_id = " + id);
 
-  if (!mDB->executeSQL (sql))
+  if (!query.isActive())
   {
-    SHOW_DB_ERROR(tr ("Error during database query"), sql);
+    SHOW_DB_ERROR(tr ("Error during database query"), query.lastQuery());
     return;
   }
 
-  mDB->readResult (record);
+  query.first();
 
   //----------------------------------------------------------------------------
   // Set the text of the checkbox controls.
   //----------------------------------------------------------------------------
-  if (record.count() > 0)
+  if (query.size() > 0)
   {
-    mOwnerRead->setChecked    ((record[0]  == "TRUE") ? true : false);
-    mOwnerWrite->setChecked   ((record[1]  == "TRUE") ? true : false);
-    mOwnerDelete->setChecked  ((record[2]  == "TRUE") ? true : false);
-    mOwnerLink->setChecked    ((record[3]  == "TRUE") ? true : false);
-    mFriendRead->setChecked   ((record[4]  == "TRUE") ? true : false);
-    mFriendWrite->setChecked  ((record[5]  == "TRUE") ? true : false);
-    mFriendDelete->setChecked ((record[6]  == "TRUE") ? true : false);
-    mFriendLink->setChecked   ((record[7]  == "TRUE") ? true : false);
-    mAllRead->setChecked      ((record[8]  == "TRUE") ? true : false);
-    mAllWrite->setChecked     ((record[9]  == "TRUE") ? true : false);
-    mAllDelete->setChecked    ((record[10] == "TRUE") ? true : false);
-    mAllLink->setChecked      ((record[11] == "TRUE") ? true : false);
+    mOwnerRead->setChecked    ((query.value(0).toBool())  ? true : false);
+    mOwnerWrite->setChecked   ((query.value(1).toBool())  ? true : false);
+    mOwnerDelete->setChecked  ((query.value(2).toBool())  ? true : false);
+    mOwnerLink->setChecked    ((query.value(3).toBool())  ? true : false);
+    mFriendRead->setChecked   ((query.value(4).toBool())  ? true : false);
+    mFriendWrite->setChecked  ((query.value(5).toBool())  ? true : false);
+    mFriendDelete->setChecked ((query.value(6).toBool())  ? true : false);
+    mFriendLink->setChecked   ((query.value(7).toBool())  ? true : false);
+    mAllRead->setChecked      ((query.value(8).toBool())  ? true : false);
+    mAllWrite->setChecked     ((query.value(9).toBool())  ? true : false);
+    mAllDelete->setChecked    ((query.value(10).toBool()) ? true : false);
+    mAllLink->setChecked      ((query.value(11).toBool()) ? true : false);
   }
 
   //----------------------------------------------------------------------------
   // Load the list of friends.
   //----------------------------------------------------------------------------
-  sql = "SELECT id, type FROM contacts_friends WHERE person_id = " + id;
+  query.exec ("SELECT id, type FROM contacts_friends WHERE person_id = " + id);
 
-  if (!mDB->executeSQL (sql))
+  if (!query.isActive())
   {
-    SHOW_DB_ERROR(tr ("Error during database query"), sql);
+    SHOW_DB_ERROR(tr ("Error during database query"), query.lastQuery());
     return;
   }
 
-  while (mDB->readResult (record))
-    friends << record[0] << record[1];
+  while (query.next())
+    friends << query.value(0).toString() << query.value(1).toString();
 
   //----------------------------------------------------------------------------
   // Load the names of the friends.
@@ -232,19 +232,20 @@ void CSecurity::loadData (QString id, bool readonly)
   for (i = 0; i < friends.count(); i += 2)
   {
     if (friends[i + 1] == "0")
-      sql = "SELECT name FROM enixs_users WHERE user_id = " + friends[i];
+      query.exec ("SELECT name FROM enixs_users WHERE user_id = " + friends[i]);
     else
-      sql = "SELECT name FROM enixs_groups WHERE group_id = " + friends[i];
+      query.exec ("SELECT name FROM enixs_groups WHERE group_id = " + friends[i]);
 
-    if (!mDB->executeSQL (sql))
+    if (!query.isActive())
     {
-      SHOW_DB_ERROR(tr ("Error during database query"), sql);
+      SHOW_DB_ERROR(tr ("Error during database query"), query.lastQuery());
       return;
     }
 
-    mDB->readResult (record);
+    query.first();
 
-    new QListViewItem (mFriends, record[0], friends[i + 1], friends[i]);
+    new QListViewItem (mFriends, query.value(0).toString(), 
+                       friends[i + 1], friends[i]);
   }
   
   //----------------------------------------------------------------------------
@@ -268,27 +269,25 @@ void CSecurity::loadData (QString id, bool readonly)
 //=============================================================================
 void CSecurity::deleteData (QString id)
 {
-  QString 	  sql;
-  
   //----------------------------------------------------------------------------
   // Delete the rights of the contact
   //----------------------------------------------------------------------------
-  sql = "DELETE FROM contacts_rights WHERE person_id = " + id;
+  QSqlQuery query ("DELETE FROM contacts_rights WHERE person_id = " + id);
 
-  if (!mDB->executeSQL (sql))
+  if (!query.isActive())
   {
-    SHOW_DB_ERROR(tr ("Error during deleting the data"), sql);
+    SHOW_DB_ERROR(tr ("Error during deleting the data"), query.lastQuery());
     return;
   }
 
   //----------------------------------------------------------------------------
   // Delete the friends of the contact
   //----------------------------------------------------------------------------
-  sql = "DELETE FROM contacts_friends WHERE person_id = " + id;
+  query.exec ("DELETE FROM contacts_friends WHERE person_id = " + id);
 
-  if (!mDB->executeSQL (sql))
+  if (!query.isActive())
   {
-    SHOW_DB_ERROR(tr ("Error during deleting the data"), sql);
+    SHOW_DB_ERROR(tr ("Error during deleting the data"), query.lastQuery());
     return;
   }
 
@@ -350,9 +349,11 @@ QString CSecurity::saveChanges ()
   //----------------------------------------------------------------------------
   // Execute the SQL statement.
   //----------------------------------------------------------------------------
-  if (!mDB->executeSQL (sql))
+  QSqlQuery query (sql);
+  
+  if (!query.isActive())
   {
-    SHOW_DB_ERROR(tr ("Error during writing of data"), sql);
+    SHOW_DB_ERROR(tr ("Error during writing of data"), query.lastQuery());
     return "";
   }
   
@@ -361,13 +362,13 @@ QString CSecurity::saveChanges ()
   //----------------------------------------------------------------------------
   for (item = mAddedList.first(); item; item = mAddedList.next())
   {
-    sql = "INSERT contacts_friends (person_id, type, id) "
-          "VALUES (" + mCurrent + ", " + (item->text(1) == "user" ? "0" : "1") + 
-          ", " + item->text(2) + ")";
+    query.exec ("INSERT contacts_friends (person_id, type, id) "
+                "VALUES (" + mCurrent + ", " + (item->text(1)=="user" ? "0" : "1") +
+                ", " + item->text(2) + ")");
     
-    if (!mDB->executeSQL (sql))
+    if (!query.isActive())
     {
-      SHOW_DB_ERROR(tr ("Error during writing of data"), sql);
+      SHOW_DB_ERROR(tr ("Error during writing of data"), query.lastQuery());
       return "";
     }
   }
@@ -379,12 +380,12 @@ QString CSecurity::saveChanges ()
   //----------------------------------------------------------------------------
   for (item = mRemovedList.first(); item; item = mRemovedList.next())
   {
-    sql = "DELETE FROM contacts_friends WHERE person_id = " + mCurrent + 
-          " AND id = " + item->text(2);
+    query.exec ("DELETE FROM contacts_friends WHERE person_id = " + mCurrent + 
+                " AND id = " + item->text(2));
   
-    if (!mDB->executeSQL (sql))
+    if (!query.isActive())
     {
-      SHOW_DB_ERROR(tr ("Error during writing of data"), sql);
+      SHOW_DB_ERROR(tr ("Error during writing of data"), query.lastQuery());
       return "";
     }
   }

@@ -28,6 +28,7 @@
 #include <qvbox.h>
 #include <qaccel.h>
 #include <qtooltip.h>
+#include <qsqldatabase.h>
 
 //=============================================================================
 // Application specific includes.
@@ -39,7 +40,6 @@
 #include "userdata.h"
 #include "util.h"
 #include "resource.h"
-#include <dbconnection.h>
 
 //=============================================================================
 // Bitmaps for the actions.
@@ -51,8 +51,8 @@
 #include "bitmaps/helpcontext.xpm"
 #include "bitmaps/enixs32.xpm"
 
-extern CConnection*  mDB;
-extern CUserData*    mCurrentUser;
+       QSqlDatabase* mDB;
+       CUserData*    mCurrentUser;
 extern QString       mLanguage;
 
 //=============================================================================
@@ -62,11 +62,6 @@ CEnixsApp::CEnixsApp()
 {
   CLogin   login (this);
   QString  err;
-  int      errno;
-  QString  username;
-  QString  password;
-  QString  database;
-  QString  hostname;
 
   setCaption ("EniXs " VERSION);
   setIcon    (QPixmap (enixs32));
@@ -76,31 +71,38 @@ CEnixsApp::CEnixsApp()
   // Initialize the status bar.
   //---------------------------------------------------------------------------
   initStatusBar();
+	
+  //---------------------------------------------------------------------------
+  // Create the database object.
+  //---------------------------------------------------------------------------
+  mDB = QSqlDatabase::addDatabase ("QSAPDB7");
 
+  if (!mDB)
+  {
+    QMessageBox::critical ((QWidget*)0, tr ("Error during Startup"),
+                           tr ("Cannot connect to database driver."),
+                           QMessageBox::Ok, QMessageBox::NoButton);
+    exit(1);
+  }
+  
   //---------------------------------------------------------------------------
   // Display the login dialog until the login was successful or aborted.
   //---------------------------------------------------------------------------
-  while (username.isEmpty())
+  while (!mDB->isOpen())
   {
     if (login.exec())
     {
-      username = login.username();
-      password = login.password();
-      database = login.database();
-      hostname = login.hostname();
+      mDB->setUserName     (login.username());
+      mDB->setPassword     (login.password());
+      mDB->setDatabaseName (login.database());
+      mDB->setHostName     (login.hostname());
 
       //-----------------------------------------------------------------------
       // Connect to the database with the entered data.
       //-----------------------------------------------------------------------
-      mDB->setAutoCommitMode (AutoCommitOff);
-      mDB->setIsolationLevel (UnCommitted);
-
-      if (!mDB->connect ("SAP DB 7.3", username, password, database, hostname))
+      if (!mDB->open())
       {
-        err   = mDB->error();
-        errno = err.mid(10, 5).stripWhiteSpace().toInt();
-
-        if (errno == -709)
+        if (mDB->lastError().driverText() == "QSAPDB7: Unable to connect")
           QMessageBox::critical	((QWidget*)0, tr ("Error during Login"),
                                  tr ("Database server is not available."),
                                  QMessageBox::Ok, QMessageBox::NoButton);
@@ -111,21 +113,19 @@ CEnixsApp::CEnixsApp()
                                  QMessageBox::Ok, QMessageBox::NoButton);
           login.setPassword ("");
         }
-
-        username = "";
       }
       else
       {
-        mStatusDB->setText   (database);
-        mStatusUser->setText (username);
+        mStatusDB->setText   (mDB->databaseName());
+        mStatusUser->setText (mDB->userName());
         
-        if (!hostname.isEmpty())
-          mStatusHost->setText (hostname);
+        if (!mDB->hostName().isEmpty())
+          mStatusHost->setText (mDB->hostName());
         else
           mStatusHost->setText (tr("local"));
 
         login.setPassword ("");
-        password = "";
+        mDB->setPassword  ("");
       }
     }
     else
@@ -133,11 +133,26 @@ CEnixsApp::CEnixsApp()
   }
   
   //---------------------------------------------------------------------------
+  // Start a new transaction. This implicity disables autocommit mode.
+  //---------------------------------------------------------------------------
+  if (!mDB->transaction())
+  {
+    QMessageBox::critical ((QWidget*)0, tr ("Error during Startup"),
+                           tr ("Unable to disable autocommit mode."),
+                           QMessageBox::Ok, QMessageBox::NoButton);
+    exit(1);
+  }
+  
+//      mDB->setIsolationLevel (UnCommitted);
+
+  //---------------------------------------------------------------------------
   // Get the user information for the current user.
   //---------------------------------------------------------------------------
-  if (!mCurrentUser->getUserData (username))
+  mCurrentUser = new CUserData();
+
+  if (!mCurrentUser->getUserData (mDB->userName()))
   {
-    err = tr("User ") + username + 
+    err = tr("User ") + mDB->userName() + 
           tr(" has not been created in the user management.");
 
     QMessageBox::critical (this, tr ("Error during Login"), err,
@@ -148,7 +163,7 @@ CEnixsApp::CEnixsApp()
   mStatusRole->setText (mCurrentUser->role());
 
   //---------------------------------------------------------------------------
-  // Get the user information for the current user.
+  // Store the current language in the database for being read by the plugins.
   //---------------------------------------------------------------------------
   setLanguage ();
 
@@ -161,7 +176,7 @@ CEnixsApp::CEnixsApp()
   initToolBar	 ();
   resize		 (900, 700);
 
-  mViewToolBar->setOn	 	(true);
+  mViewToolBar->setOn	(true);
   mViewStatusBar->setOn (true);
 
   connect (qApp, SIGNAL(aboutToQuit()), this, SLOT(slotFileQuit()));
@@ -175,8 +190,8 @@ CEnixsApp::~CEnixsApp()
   //----------------------------------------------------------------------------
   // Disconnect from the database.
   //----------------------------------------------------------------------------
-  if (mDB->isConnected())
-    mDB->disconnect();
+//  if (mDB->isConnected())
+//    mDB->disconnect();
 }
 
 //=============================================================================
@@ -394,7 +409,7 @@ void CEnixsApp::initView()
 //=============================================================================
 bool CEnixsApp::queryExit()
 {
-  if (mDB->isConnected())
+  if (mDB->isOpen())
   {
     //--------------------------------------------------------------------------
     // Save the program settings.
@@ -424,12 +439,12 @@ bool CEnixsApp::queryExit()
 //  	}
 
     //--------------------------------------------------------------------------
-    // Disconnect from the database.
+    // Close the database connection.
     //--------------------------------------------------------------------------
-    mDB->disconnect();
+    mDB->close();
     deleteTempFiles();
   }
-  
+
   exit (0);
 
   return true;
@@ -605,7 +620,7 @@ void CEnixsApp::slotShowPlugin (QString name)
   //---------------------------------------------------------------------------
   // Create the window of the plugin.
   //---------------------------------------------------------------------------
-  window = wf->create        (mWorkspace,name,WDestructiveClose,mDB,mCurrentUser);
+  window = wf->create        (mWorkspace, name, WDestructiveClose);
   window->setCaption         (name);
   window->setIcon            (pd->icon());
   window->installEventFilter (this);
@@ -636,15 +651,13 @@ void CEnixsApp::slotSetCaption (QString name, QString title)
 //=============================================================================
 void CEnixsApp::setLanguage ()
 {
-  QString   sql;
-
-  sql = "INSERT INTO enixs_user_config (user_id, description, conf_value) "
-        "VALUES (" + mCurrentUser->id() + ", 'language', '" + mLanguage + "') "
-        "UPDATE DUPLICATES";
+  QSqlQuery query ("INSERT INTO enixs_user_config (user_id,description,conf_value) "
+                   "VALUES (" + mCurrentUser->id() + ", 'language', '" + 
+                   mLanguage + "') UPDATE DUPLICATES");
   
-  if (!mDB->executeSQL (sql))
+  if (!query.isActive())
   {
-    SHOW_DB_ERROR(tr ("Error during writing of data"), sql);
+    SHOW_DB_ERROR(tr ("Error during writing of data"), query.lastQuery());
     return;
   }
 

@@ -36,7 +36,7 @@
 //=============================================================================
 // Constructor of the class CCommunication.
 //=============================================================================
-CCommunication::CCommunication (QWidget *parent, const char *name, CConnection *db,
+CCommunication::CCommunication (QWidget *parent, const char *name, QSqlDatabase *db,
                                 CUserData *current)
 	: QWidget (parent,name)
 {
@@ -75,8 +75,7 @@ CCommunication::~CCommunication()
 //=============================================================================
 void CCommunication::loadData (QString id, bool readonly)
 {
-  QString 			sql, DBnull = "?", tip;
-  QStringList		record;
+  QString 			DBnull = "?", tip;
   unsigned int      row = 0;
   
   //----------------------------------------------------------------------------
@@ -89,17 +88,17 @@ void CCommunication::loadData (QString id, bool readonly)
   //----------------------------------------------------------------------------
   // Load the communication types.
   //----------------------------------------------------------------------------
-  sql = "SELECT comm_id, type, number, created, last_modified "
-        "FROM   contacts_communications "
-		"WHERE  person_id = " + id + " ORDER BY type";
+  QSqlQuery query ("SELECT comm_id, type, number, created, last_modified "
+                   "FROM   contacts_communications "
+                   "WHERE  person_id = " + id + " ORDER BY type");
 
-  if (!mDB->executeSQL (sql))
+  if (!query.isActive())
   {
-    SHOW_DB_ERROR(tr ("Error during database query"), sql);
+    SHOW_DB_ERROR(tr ("Error during database query"), query.lastQuery());
     return;
   }
 
-  while (mDB->readResult (record))
+  while (query.next())
   {
     if (row >= mLine.count())
     {
@@ -107,14 +106,14 @@ void CCommunication::loadData (QString id, bool readonly)
       disconnectSlots();
     }
     
-    mIDs << record[0];
-    mLine.at(row)->setID      (record[0]);
-    mLine.at(row)->setType    (record[1].toInt());
-    mLine.at(row)->setValue   (record[2]);
+    mIDs << query.value(0).toString();
+    mLine.at(row)->setID      (query.value(0).toString());
+    mLine.at(row)->setType    (query.value(1).toInt());
+    mLine.at(row)->setValue   (query.value(2).toString());
     mLine.at(row)->setToolTip (tr ("Created:\t\t\t") + 
-                               formatDateTime (record[3]) +
+                               formatDateTime (query.value(3).toString()) +
                                tr ("\nLast Modified:\t\t") + 
-                               formatDateTime (record[4]));
+                               formatDateTime (query.value(4).toString()));
     mLine.at(row)->setChanged (false);
     
     row++;
@@ -141,19 +140,14 @@ void CCommunication::loadData (QString id, bool readonly)
 //=============================================================================
 void CCommunication::deleteData (QString id)
 {
-  QString 	  sql, err;
-  
   //----------------------------------------------------------------------------
   // Delete communication data of the person.
   //----------------------------------------------------------------------------
-  sql = "DELETE FROM contacts_communications WHERE person_id = " + id;
+  QSqlQuery query ("DELETE FROM contacts_communications WHERE person_id = " + id);
 
-  //----------------------------------------------------------------------------
-  // Execute the SQL statement.
-  //----------------------------------------------------------------------------
-  if (!mDB->executeSQL (sql))
+  if (!query.isActive())
   {
-    SHOW_DB_ERROR(tr ("Error during deleting the data"), sql);
+    SHOW_DB_ERROR(tr ("Error during deleting the data"), query.lastQuery());
     return;
   }
 
@@ -170,7 +164,7 @@ void CCommunication::deleteData (QString id)
 //=============================================================================
 QString CCommunication::saveChanges ()
 {
-  QString 	      sql, intro, firstValue, where, newid;
+  QString 	      intro, firstValue, where, newid;
   unsigned int    row;
 
   //----------------------------------------------------------------------------
@@ -203,16 +197,17 @@ QString CCommunication::saveChanges ()
       where      = "";
     }
     
-    sql = intro + "person_id, type, number, last_modified) VALUES (" + firstValue +
-          mCurrent +  ", " + QString::number (mLine.at(row)->type()) + ", '"
-          + mLine.at(row)->value() + "', TIMESTAMP) " + where;
-    
     //--------------------------------------------------------------------------
     // Execute the SQL statement.
     //--------------------------------------------------------------------------
-    if (!mDB->executeSQL (sql))
+    QSqlQuery query (intro + "person_id, type, number, last_modified) VALUES (" + 
+                     firstValue + mCurrent +  ", " + 
+                     QString::number (mLine.at(row)->type()) + ", '" + 
+                     mLine.at(row)->value() + "', TIMESTAMP) " + where);
+    
+    if (!query.isActive())
     {
-      SHOW_DB_ERROR(tr ("Error during writing of data"), sql);
+      SHOW_DB_ERROR(tr ("Error during writing of data"), query.lastQuery());
       return "";
     }
 
@@ -230,26 +225,24 @@ QString CCommunication::saveChanges ()
 QString CCommunication::getNextID ()
 {
   int   	  id;
-  QString     sql;
-  QStringList record;
 
   //----------------------------------------------------------------------------
   // Read the maximum comm ID.
   //----------------------------------------------------------------------------
-  sql = "SELECT max(comm_id) FROM contacts_communications";
+  QSqlQuery query ("SELECT max(comm_id) FROM contacts_communications");
   
-  if (!mDB->executeSQL (sql))
+  if (!query.isActive())
   {
-    SHOW_DB_ERROR(tr ("Error during database query"), sql);
+    SHOW_DB_ERROR(tr ("Error during database query"), query.lastQuery());
     return "";
   }
 
-  mDB->readResult (record);
+  query.first();
 
   //----------------------------------------------------------------------------
   // Increment the current max ID and return this value.
   //----------------------------------------------------------------------------
-  id = record[0].toInt();
+  id = query.value(0).toInt();
 	
   return QString::number (++id);
 }
@@ -308,19 +301,17 @@ void CCommunication::slotAddLine ()
 //=============================================================================
 void CCommunication::slotDeleteLine (QString id)
 {
-  QString   sql;
-
   //----------------------------------------------------------------------------
   // If ID is an empty string, the line was not saved already, so nothing has
   // to bo done.
   //----------------------------------------------------------------------------
   if (id != "")
   {
-    sql = "DELETE FROM contacts_communications WHERE comm_id = " + id;
+    QSqlQuery query ("DELETE FROM contacts_communications WHERE comm_id = " + id);
 
-    if (!mDB->executeSQL (sql))
+    if (!query.isActive())
     {
-      SHOW_DB_ERROR(tr ("Error during deleting the data"), sql);
+      SHOW_DB_ERROR(tr ("Error during deleting the data"), query.lastQuery());
       return;
     }
 

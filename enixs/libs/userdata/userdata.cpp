@@ -24,15 +24,15 @@
 // Include files for QT.
 //=============================================================================
 #include <qmessagebox.h>
+#include <qsqldatabase.h>
 
 //=============================================================================
 // Application specific includes.
 //=============================================================================
 #include "userdata.h"
 #include "util.h"
-#include <dbconnection.h>
 
-extern CConnection *mDB;
+extern QSqlDatabase *mDB;
 
 //=============================================================================
 // Constructor of the class CUserData.
@@ -58,28 +58,25 @@ CUserData::~CUserData()
 //=============================================================================
 bool CUserData::getUserData (QString user)
 {
-  QString 			sql;
-  QStringList  		record;
-
   //----------------------------------------------------------------------------
   // Load the user information.
   //----------------------------------------------------------------------------
-  sql = "SELECT A.user_id, B.name, A.comment "
-		"FROM   enixs_users A, enixs_roles B "
-        "WHERE  A.role_id = B.role_id AND A.name = '" + user + "'";
+  QSqlQuery query ("SELECT A.user_id, B.name, A.comment "
+                   "FROM   enixs_users A, enixs_roles B "
+                   "WHERE  A.role_id = B.role_id AND A.name = '" + user + "'");
   
-  if (!mDB->executeSQL (sql))
+  if (!query.isActive())
   {
-    SHOW_DB_ERROR(tr ("Fehler bei der Datenbankanfrage"), sql);
+    SHOW_DB_ERROR(tr ("Fehler bei der Datenbankanfrage"), query.lastQuery());
     return false;
   }
 
-  while (mDB->readResult (record))
+  while (query.next())
   {
     mName    = user;
-    mID      = record[0];
-    mRole    = record[1];
-    mComment = record[2];
+    mID      = query.value(0).toString();
+    mRole    = query.value(1).toString();
+    mComment = query.value(2).toString();
   }
 
   if (mID.isEmpty())
@@ -88,16 +85,16 @@ bool CUserData::getUserData (QString user)
   //----------------------------------------------------------------------------
   // Load the group information.
   //----------------------------------------------------------------------------
-  sql = "SELECT group_id FROM enixs_users_in_groups WHERE user_id = " + mID;
+  query.exec ("SELECT group_id FROM enixs_users_in_groups WHERE user_id = " + mID);
 
-  if (mDB->executeSQL (sql) == false)
+  if (!query.isActive())
   {
-    SHOW_DB_ERROR(tr ("Fehler bei der Datenbankanfrage"), sql);
+    SHOW_DB_ERROR(tr ("Fehler bei der Datenbankanfrage"), query.lastQuery());
     return false;
   }
 
-  while (mDB->readResult (record))
-    mGroups.append (record[0]);
+  while (query.next())
+    mGroups.append (query.value(0).toString());
 
   return true;
 }

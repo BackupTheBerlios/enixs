@@ -40,22 +40,11 @@ CEnixsContactsPlugin::CEnixsContactsPlugin()
 }
 
 //=============================================================================
-// Set the connection data and load the language.
-//=============================================================================
-void CEnixsContactsPlugin::setConnection (CConnection *db, CUserData* current)
-{
-  mDB   = db;
-  mUser = current;
-}
-
-//=============================================================================
 // Create the plugin window.
 //=============================================================================
-QWidget* CEnixsContactsPlugin::create (QWidget* parent, const char* name, 
-                                       int wflags, CConnection *db, 
-                                       CUserData* current)
+QWidget* CEnixsContactsPlugin::create (QWidget* parent, const char* name,int wflags)
 {
-  return new CContacts (parent, name, wflags, db, current);
+  return new CContacts (parent, name, wflags);
 }
 
 //=============================================================================
@@ -63,7 +52,7 @@ QWidget* CEnixsContactsPlugin::create (QWidget* parent, const char* name,
 //=============================================================================
 void CEnixsContactsPlugin::offeredObjects (QListViewItem* item)
 {
-  CContacts::offeredObjects (item, mDB, mUser);
+  CContacts::offeredObjects (item);
 }
 
 //=============================================================================

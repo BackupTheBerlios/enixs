@@ -36,7 +36,7 @@
 //=============================================================================
 // Constructor of the class CJob.
 //=============================================================================
-CJob::CJob (QWidget *parent, const char *name, CConnection *db, CUserData *current)
+CJob::CJob (QWidget *parent, const char *name, QSqlDatabase *db, CUserData *current)
 	: QWidget (parent,name)
 {
   mContentChanged = false;
@@ -76,8 +76,7 @@ CJob::~CJob()
 //=============================================================================
 void CJob::loadData (QString id, bool readonly)
 {
-  QString 			sql, DBnull = "?", tip;
-  QStringList		record;
+  QString 			DBnull = "?", tip;
   unsigned int      row = 0;
   
   //----------------------------------------------------------------------------
@@ -90,18 +89,18 @@ void CJob::loadData (QString id, bool readonly)
   //----------------------------------------------------------------------------
   // Load the data.
   //----------------------------------------------------------------------------
-  sql = "SELECT job_id, company, activity, department, manager, assistant, "
-               "created, last_modified "
-        "FROM   contacts_jobs "
-		"WHERE  person_id = " + id + " ORDER BY company";
+  QSqlQuery query ("SELECT job_id, company, activity, department, manager, "
+                   "       assistant, created, last_modified "
+                   "FROM   contacts_jobs "
+                   "WHERE  person_id = " + id + " ORDER BY company");
 
-  if (!mDB->executeSQL (sql))
+  if (!query.isActive())
   {
-    SHOW_DB_ERROR(tr ("Error during database query"), sql);
+    SHOW_DB_ERROR(tr ("Error during database query"), query.lastQuery());
     return;
   }
 
-  while (mDB->readResult (record))
+  while (query.next())
   {
     if (row >= mJob.count())
     {
@@ -109,17 +108,17 @@ void CJob::loadData (QString id, bool readonly)
       disconnectSlots();
     }
     
-    mIDs << record[0];
-    mJob.at(row)->setID         (record[0]);
-    mJob.at(row)->setCompany    (record[1]);
-    mJob.at(row)->setJob        (record[2]);
-    mJob.at(row)->setDepartment (record[3]);
-    mJob.at(row)->setManager    (record[4]);
-    mJob.at(row)->setAssistant  (record[5]);
+    mIDs << query.value(0).toString();
+    mJob.at(row)->setID         (query.value(0).toString());
+    mJob.at(row)->setCompany    (query.value(1).toString());
+    mJob.at(row)->setJob        (query.value(2).toString());
+    mJob.at(row)->setDepartment (query.value(3).toString());
+    mJob.at(row)->setManager    (query.value(4).toString());
+    mJob.at(row)->setAssistant  (query.value(5).toString());
     mJob.at(row)->setToolTip    (tr ("Created:\t\t\t") + 
-                                 formatDateTime (record[6]) +
+                                 formatDateTime (query.value(6).toString()) +
                                  tr ("\nLast Modified:\t\t") + 
-                                 formatDateTime (record[7]));
+                                 formatDateTime (query.value(7).toString()));
     mJob.at(row)->setChanged    (false);
     
     row++;
@@ -146,20 +145,14 @@ void CJob::loadData (QString id, bool readonly)
 //=============================================================================
 void CJob::deleteData (QString id)
 {
-  QString 	  sql, err;
-  QStringList record;
-  
   //----------------------------------------------------------------------------
   // Delete the job data of the person.
   //----------------------------------------------------------------------------
-  sql = "DELETE FROM contacts_jobs WHERE person_id = " + id;
+  QSqlQuery query ("DELETE FROM contacts_jobs WHERE person_id = " + id);
 
-  //----------------------------------------------------------------------------
-  // Execute the SQL statement.
-  //----------------------------------------------------------------------------
-  if (!mDB->executeSQL (sql))
+  if (!query.isActive())
   {
-    SHOW_DB_ERROR(tr ("Error during deleting the data"), sql);
+    SHOW_DB_ERROR(tr ("Error during deleting the data"), query.lastQuery());
     return;
   }
 
@@ -176,7 +169,7 @@ void CJob::deleteData (QString id)
 //=============================================================================
 QString CJob::saveChanges ()
 {
-  QString 	      sql, intro, firstValue, where, newid;
+  QString 	      intro, firstValue, where, newid;
   unsigned int    row;
 
   //----------------------------------------------------------------------------
@@ -209,21 +202,20 @@ QString CJob::saveChanges ()
       where      = "";
     }
     
-    sql = intro + "person_id, company, activity, department, manager, assistant, "
-          "last_modified) VALUES (" + firstValue + mCurrent +  ", '" + 
-          mJob.at(row)->company() + "', '" + 
-          mJob.at(row)->job() + "', '" +
-          mJob.at(row)->department() + "', '" + 
-          mJob.at(row)->manager() + "', '" + 
-          mJob.at(row)->assistant() + "', TIMESTAMP) " + where;
-    debug (sql);
-    
     //--------------------------------------------------------------------------
     // Execute the SQL statement.
     //--------------------------------------------------------------------------
-    if (!mDB->executeSQL (sql))
+    QSqlQuery query (intro + "person_id, company, activity, department, manager, "
+                     "assistant, last_modified) VALUES (" + firstValue + 
+                     mCurrent +  ", '" + mJob.at(row)->company() + "', '" + 
+                     mJob.at(row)->job() + "', '" + 
+                     mJob.at(row)->department() + "', '" + 
+                     mJob.at(row)->manager() + "', '" + 
+                     mJob.at(row)->assistant() + "', TIMESTAMP) " + where);
+    
+    if (!query.isActive())
     {
-      SHOW_DB_ERROR(tr ("Error during writing of data"), sql);
+      SHOW_DB_ERROR(tr ("Error during writing of data"), query.lastQuery());
       return "";
     }
 
@@ -240,19 +232,16 @@ QString CJob::saveChanges ()
 //=============================================================================
 void CJob::loadJobTypes()
 {
-  QString     sql;
-  QStringList record;
-
-  sql = "SELECT DISTINCT activity FROM contacts_jobs";
+  QSqlQuery query ("SELECT DISTINCT activity FROM contacts_jobs");
   
-  if (!mDB->executeSQL (sql))
+  if (!query.isActive())
   {
-    SHOW_DB_ERROR(tr ("Error during database query"), sql);
+    SHOW_DB_ERROR(tr ("Error during database query"), query.lastQuery());
     return;
   }
 
-  while (mDB->readResult (record))
-    mJobTypes << record[0];
+  while (query.next())
+    mJobTypes << query.value(0).toString();
 }
 
 //=============================================================================
@@ -260,27 +249,25 @@ void CJob::loadJobTypes()
 //=============================================================================
 QString CJob::getNextID ()
 {
-  int   	  id;
-  QString     sql;
-  QStringList record;
+  int   id;
 
   //----------------------------------------------------------------------------
   // Read the maximum job ID.
   //----------------------------------------------------------------------------
-  sql = "SELECT max(job_id) FROM contacts_jobs";
+  QSqlQuery query ("SELECT max(job_id) FROM contacts_jobs");
   
-  if (!mDB->executeSQL (sql))
+  if (!query.isActive())
   {
-    SHOW_DB_ERROR(tr ("Error during database query"), sql);
+    SHOW_DB_ERROR(tr ("Error during database query"), query.lastQuery());
     return "";
   }
 
-  mDB->readResult (record);
+  query.first();
 
   //----------------------------------------------------------------------------
   // Increment the current max ID and return this value.
   //----------------------------------------------------------------------------
-  id = record[0].toInt();
+  id = query.value(0).toInt();
 	
   return QString::number (++id);
 }
@@ -350,19 +337,17 @@ void CJob::slotAddLine ()
 //=============================================================================
 void CJob::slotDeleteLine (QString id)
 {
-  QString   sql;
-  
   //----------------------------------------------------------------------------
   // If ID is an empty string, the line was not saved already, so nothing has
   // to bo done.
   //----------------------------------------------------------------------------
   if (id != "")
   {
-    sql = "DELETE FROM contacts_jobs WHERE job_id = " + id;
+    QSqlQuery query ("DELETE FROM contacts_jobs WHERE job_id = " + id);
 
-    if (!mDB->executeSQL (sql))
+    if (!query.isActive())
     {
-      SHOW_DB_ERROR(tr ("Error during deleting the data"), sql);
+      SHOW_DB_ERROR(tr ("Error during deleting the data"), query.lastQuery());
       return;
     }
 

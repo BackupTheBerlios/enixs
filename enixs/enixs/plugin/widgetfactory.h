@@ -44,14 +44,13 @@ public:
   CWidgetFactory (const QString & libpath);
   ~CWidgetFactory();
 	
-  QString  name   	      ();
-  QString  group  	      ();
-  QPixmap  icon   	      ();
-  QString  toolTip	      ();
-  QString  whatsThis      ();
-  QString  summary        ();
-  QWidget* create 	      (QWidget* parent, const char *name, int wflags,
-                           CConnection* db, CUserData* current);
+  QString  name   	  ();
+  QString  group  	  ();
+  QPixmap  icon   	  ();
+  QString  toolTip	  ();
+  QString  whatsThis  ();
+  QString  summary    ();
+  QWidget* create 	  (QWidget* parent, const char *name, int wflags);
 
 private:
   QLibrary*			mLib;

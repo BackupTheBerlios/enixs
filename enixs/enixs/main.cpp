@@ -33,16 +33,12 @@
 // Application specific includes.
 //=============================================================================
 #include "enixs.h"
-#include "userdata.h"
-#include <dbconnection.h>
 #include <stdlib.h>
 
 void usage ();
 
-CConnection*    mDB;
-CUserData*      mCurrentUser;
-QString         mLanguage;
-QString         mEnixsDir;
+QString    mLanguage;
+QString    mEnixsDir;
 
 //=============================================================================
 // Main function of the EniXs application.
@@ -95,12 +91,6 @@ int main (int argc, char *argv[])
     translator->load    (translations[i], translations.path());
     a.installTranslator (translator);
   }
-
-  //---------------------------------------------------------------------------
-  // Create a database connection object and a user data object.
-  //---------------------------------------------------------------------------
-  mDB          = new CConnection();
-  mCurrentUser = new CUserData();
 
   //---------------------------------------------------------------------------
   // Create the main application object and make it the main widget of the

@@ -25,12 +25,13 @@
 // Include files for QT.
 //=============================================================================
 #include <qlistview.h>
+#include <qsqldatabase.h>
 
 //=============================================================================
 // Application specific includes.
 //=============================================================================
 #include "pluginfactory.h"
-#include <dbconnection.h>
+#include "userdata.h"
 
 
 class QT_WIDGET_PLUGIN_EXPORT CEnixsTemplatePlugin : public CPluginFactory
@@ -38,9 +39,7 @@ class QT_WIDGET_PLUGIN_EXPORT CEnixsTemplatePlugin : public CPluginFactory
 public:
   CEnixsTemplatePlugin();
 
-  void        setConnection  (CConnection* db=0, CUserData* current=0);
-  QWidget*    create         (QWidget* parent=0, const char* name=0, int wflags=0,
-                              CConnection* db=0, CUserData* current=0);
+  QWidget*    create         (QWidget* parent=0, const char* name=0, int wflags=0);
   void        offeredObjects (QListViewItem* item);
   
   QString     name           () const;
@@ -51,6 +50,6 @@ public:
   QString     summary        () const;
 
 private:
-  CConnection*    mDB;
+  QSqlDatabase*   mDB;
   CUserData*      mUser;
 };

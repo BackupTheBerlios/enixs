@@ -31,9 +31,6 @@
 //=============================================================================
 #include "widgetfactory.h"
 
-extern CConnection*  mDB;
-extern CUserData*    mCurrentUser;
-
 //=============================================================================
 // Constructor of the widget factory class.
 //=============================================================================
@@ -43,13 +40,10 @@ CWidgetFactory::CWidgetFactory (const QString & libpath)
   factoryFunction f = (factoryFunction) mLib->resolve ("factory");
 
   if (f)
-  {
   	mFactory = (CPluginFactory *)f();
-    mFactory->setConnection (mDB, mCurrentUser);
-  }
   else
     QMessageBox::critical	((QWidget*)0, QObject::tr ("Plugin Error"), 
-                             QObject::tr ("Das Plugin ") + mLib->library() + 
+                             QObject::tr ("The plugin ") + mLib->library() + 
                              QObject::tr (" could not be loaded."),
                              QMessageBox::Ok, QMessageBox::NoButton);
 }
@@ -131,11 +125,10 @@ QString CWidgetFactory::summary()
 //=============================================================================
 // Create a new object of the class offered by the plugin.
 //=============================================================================
-QWidget * CWidgetFactory::create (QWidget* parent, const char *name, int wflags,
-                                  CConnection* db, CUserData* current)
+QWidget * CWidgetFactory::create (QWidget* parent, const char *name, int wflags)
 {
   if (mFactory)
-    return mFactory->create (parent, name, wflags, db, current);
+    return mFactory->create (parent, name, wflags);
 
   return 0;
 }

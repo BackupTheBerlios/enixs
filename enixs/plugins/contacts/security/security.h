@@ -34,12 +34,12 @@
 #include <qlineedit.h>
 #include <qtextedit.h>
 #include <qpushbutton.h>
+#include <qsqldatabase.h>
 
 //=============================================================================
 // Application specific includes.
 //=============================================================================
 #include "userdata.h"
-#include <dbconnection.h>
 
 
 class CSecurity : public QWidget
@@ -47,7 +47,7 @@ class CSecurity : public QWidget
   Q_OBJECT
 
 public: 
-  CSecurity (QWidget *parent=0, const char *name=0, CConnection *db=0,
+  CSecurity (QWidget *parent=0, const char *name=0, QSqlDatabase *db=0,
              CUserData *current=0);
   ~CSecurity();
 
@@ -104,7 +104,7 @@ private:
   QPtrList<QListViewItem> 	mAddedList;
   QPtrList<QListViewItem> 	mRemovedList;
   
-  CConnection*  mDB;
+  QSqlDatabase* mDB;
   CUserData*    mCurrentUser;
   QString       mCurrent;
   bool			mContentChanged;

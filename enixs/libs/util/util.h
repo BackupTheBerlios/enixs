@@ -43,14 +43,13 @@
 #define FREE_PTR(p)       		if (p) { delete p; p = 0; }
 
 #define SHOW_DB_ERROR(text, sql)	QMessageBox::critical (this, \
-                                      QObject::tr("ODBC-Fehler"), \
-                                      text + ":\n\n" + mDB->lastSQLError() + \
+                                      QObject::tr("ODBC-Fehler"), text + ":\n\n" + \
+                                      mDB->lastError().databaseText() + \
                                       QObject::tr("\n\nDatei: ") + __FILE__ + \
                                       QObject::tr("\nZeile: ") + \
                                       QString::number (__LINE__) + \
                                       QObject::tr("\nSQL: ") + sql, \
-                                      QMessageBox::Ok, QMessageBox::NoButton); \
-                                    mDB->closeResult();
+                                      QMessageBox::Ok, QMessageBox::NoButton);
 
 #define DB_INT(value)				(value.isEmpty() ? QString("NULL") : value)
 
