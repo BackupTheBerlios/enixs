@@ -630,6 +630,8 @@ void CEnixsApp::slotShowPlugin (QString name)
 
   connect (window, SIGNAL(selectedItem   (QString, QString)),
            this,   SLOT  (slotSetCaption (QString, QString)));
+  connect (window, SIGNAL(closeWindow    ()),
+           window, SLOT  (close          ()));
 }
 
 //=============================================================================
